@@ -15,7 +15,8 @@ import {
   jobPerformance,
 } from "@/data/seed-data";
 
-const API_BASE = "/api";
+const API_BASE =
+  (window as unknown as Record<string, string>).__API_BASE_URL__ ?? "/api";
 
 const PLATFORM_ALIAS: Record<string, string> = {
   snowflake: "SNOWFLAKE",
@@ -29,13 +30,13 @@ function normalizePlatform(value: string): string {
   return PLATFORM_ALIAS[value.toLowerCase()] ?? value.toUpperCase();
 }
 
-function normalizeRow<T extends Record<string, unknown>>(row: T): T {
-  const out = { ...row };
+function normalizeRow<T>(row: T): T {
+  const out = { ...row } as Record<string, unknown>;
   if (typeof out.platform === "string")
-    out.platform = normalizePlatform(out.platform as string) as T["platform"];
+    out.platform = normalizePlatform(out.platform);
   if (typeof out.status === "string")
-    out.status = (out.status as string).toUpperCase() as T["status"];
-  return out;
+    out.status = out.status.toUpperCase();
+  return out as T;
 }
 
 async function fetchLive<T>(endpoint: string): Promise<T> {
@@ -53,7 +54,7 @@ async function fetchWithFallback<T>(endpoint: string, seed: T): Promise<T> {
   }
 }
 
-async function fetchRows<T extends Record<string, unknown>>(
+async function fetchRows<T>(
   endpoint: string,
   seed: T[],
 ): Promise<T[]> {

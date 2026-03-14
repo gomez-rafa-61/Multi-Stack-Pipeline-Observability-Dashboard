@@ -31,6 +31,10 @@ def _get_connection_params() -> dict[str, Any]:
         "schema": os.environ.get("SNOWFLAKE_SCHEMA", "UAM_MONITORING"),
     }
 
+    role = os.environ.get("SNOWFLAKE_ROLE", "")
+    if role:
+        params["role"] = role
+
     pat = os.environ.get("SNOWFLAKE_PAT", "")
     authenticator = os.environ.get("SNOWFLAKE_AUTHENTICATOR", "")
 

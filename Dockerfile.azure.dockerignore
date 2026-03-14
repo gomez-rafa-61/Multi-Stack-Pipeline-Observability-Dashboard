@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Build artifacts
+dist/
+tsconfig.tsbuildinfo
+
+# Environment / secrets
+backend/.env
+.env
+
+# Docker
+.dockerignore
+docker-compose*.yml
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docs / meta
+*.md
+doc/
+LICENSE
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+
+# Backend test files
+backend/test_connection.py
+backend/.env.example

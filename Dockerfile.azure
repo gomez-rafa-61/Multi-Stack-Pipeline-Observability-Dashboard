@@ -1,0 +1,54 @@
+# =============================================================================
+# Combined image: Frontend (Vite/React) + Backend (FastAPI) for Azure Web App
+# nginx serves static assets on :8080, proxies /api/ to uvicorn on :8000
+# =============================================================================
+
+# --- Stage 1: Install Node dependencies ---
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# --- Stage 2: Build the Vite/React frontend ---
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json tsconfig.json vite.config.ts index.html vite-env.d.ts ./
+COPY src/ ./src/
+COPY public/ ./public/
+RUN npm run build
+
+# --- Stage 3: Combined runtime (Python + nginx + supervisor) ---
+FROM python:3.12-slim AS runtime
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      nginx \
+      supervisor \
+      curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/app/ ./app/
+
+COPY --from=build /app/dist /usr/share/nginx/html
+
+RUN rm -f /etc/nginx/sites-enabled/default
+COPY nginx.azure.conf /etc/nginx/nginx.conf
+COPY supervisord.conf /etc/supervisor/conf.d/app.conf
+
+RUN mkdir -p /var/log/supervisor && \
+    mkdir -p /var/lib/nginx/body && \
+    chown -R www-data:www-data /usr/share/nginx/html
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -f http://127.0.0.1:8080/ && curl -f http://127.0.0.1:8000/api/health || exit 1
+
+CMD ["supervisord", "-n", "-c", "/etc/supervisor/conf.d/app.conf"]

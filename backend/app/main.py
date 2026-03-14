@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import os
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +23,14 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
+_default_origins = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "https://dev-uam-app.azurewebsites.net",
+]
+_extra = os.environ.get("CORS_ORIGINS", "")
+_origins = _default_origins + [o.strip() for o in _extra.split(",") if o.strip()]
+
 app = FastAPI(
     title="Pipeline Observability API",
     version="1.0.0",
@@ -28,7 +38,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:4173"],
+    allow_origins=_origins,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
