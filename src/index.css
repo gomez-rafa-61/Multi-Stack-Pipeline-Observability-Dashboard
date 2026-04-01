@@ -1,32 +1,43 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "General Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
-  --color-bg-primary: #1a1a1a;
-  --color-bg-surface: #222222;
-  --color-border-default: #2a2a2a;
-  --color-border-elevated: #333333;
-  --color-border-input: #3a3a3a;
-  --color-accent: #e8822a;
-  --color-accent-muted: rgba(232, 130, 42, 0.15);
-  --color-success: #4ade80;
-  --color-success-muted: rgba(74, 222, 128, 0.1);
-  --color-warning: #fbbf24;
-  --color-warning-muted: rgba(251, 191, 36, 0.1);
-  --color-danger: #f87171;
-  --color-danger-muted: rgba(248, 113, 113, 0.1);
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #9ca3af;
-  --color-text-muted: #666666;
-  --color-surface-hover: rgba(255, 255, 255, 0.03);
+  --color-bg-primary: #F0F2F5;
+  --color-bg-surface: #FFFFFF;
+  --color-border-default: rgba(0, 0, 0, 0.08);
+  --color-border-elevated: rgba(0, 0, 0, 0.12);
+  --color-border-input: rgba(0, 0, 0, 0.15);
+
+  --color-accent: #1A6FE0;
+  --color-accent-muted: rgba(26, 111, 224, 0.12);
+
+  --color-success: #2EAD6E;
+  --color-success-muted: rgba(46, 173, 110, 0.1);
+  --color-warning: #F5A623;
+  --color-warning-muted: rgba(245, 166, 35, 0.1);
+  --color-danger: #E74C3C;
+  --color-danger-muted: rgba(231, 76, 60, 0.1);
+
+  --color-text-primary: #1A2744;
+  --color-text-secondary: #4A5568;
+  --color-text-muted: #9EA8B5;
+  --color-surface-hover: rgba(0, 0, 0, 0.03);
+
+  --color-kpi-monetary: #6B4FD8;
+  --color-kpi-count: #0097A7;
+  --color-kpi-rate: #00ACC1;
+  --color-kpi-time: #2EAD6E;
+
+  --color-nav-bg: #0D1B35;
+  --color-nav-text: #FFFFFF;
 
   --radius-lg: 8px;
   --radius-xl: 12px;
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
@@ -40,7 +51,7 @@ body {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #4a4a4a #1a1a1a;
+  scrollbar-color: #c1c7cd #f0f2f5;
 }
 
 *::-webkit-scrollbar {
@@ -49,14 +60,14 @@ body {
 }
 
 *::-webkit-scrollbar-track {
-  background: #1a1a1a;
+  background: #f0f2f5;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: #4a4a4a;
+  background: #c1c7cd;
   border-radius: 3px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: #5a5a5a;
+  background: #a8aeb5;
 }

@@ -1,11 +1,22 @@
-"""SQL queries matching the 6 Snowflake analytics views.
+"""SQL queries for pipeline analytics.
 
-These execute the same logic as V_PIPELINE_HEALTH_SUMMARY etc.
-directly against MONITORING_EVENTS / CYCLE_STATUS_LOGS, so the
-views don't need to be deployed first.
+Legacy mode queries physical tables (MONITORING_EVENTS / CYCLE_STATUS_LOGS).
+When USE_SEMANTIC_VIEWS=true, queries come from semantic_queries (SEMANTIC_VIEW).
 """
 
-HEALTH_SUMMARY = """
+from __future__ import annotations
+
+import os
+
+from app import semantic_queries as _semantic
+
+_USE_SEMANTIC_VIEWS = os.environ.get("USE_SEMANTIC_VIEWS", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
+LEGACY_HEALTH_SUMMARY = """
 SELECT
     COUNT(*)                                                        AS TOTAL_RUNS,
     SUM(CASE WHEN STATUS = 'SUCCESS'   THEN 1 ELSE 0 END)          AS SUCCESSFUL_RUNS,
@@ -24,7 +35,7 @@ FROM MONITORING_EVENTS
 WHERE EVENT_TIME >= DATEADD(hour, -24, CURRENT_TIMESTAMP())
 """
 
-STATUS_TREND = """
+LEGACY_STATUS_TREND = """
 SELECT
     DATE_TRUNC('hour', EVENT_TIME)      AS PERIOD,
     PLATFORM,
@@ -37,7 +48,7 @@ GROUP BY DATE_TRUNC('hour', EVENT_TIME), PLATFORM, STATUS
 ORDER BY PERIOD DESC
 """
 
-PLATFORM_BREAKDOWN = """
+LEGACY_PLATFORM_BREAKDOWN = """
 SELECT
     PLATFORM,
     STATUS,
@@ -55,7 +66,7 @@ GROUP BY PLATFORM, STATUS
 ORDER BY PLATFORM, STATUS
 """
 
-RECENT_FAILURES = """
+LEGACY_RECENT_FAILURES = """
 SELECT
     EVENT_TIME,
     PLATFORM,
@@ -74,7 +85,7 @@ ORDER BY EVENT_TIME DESC
 LIMIT 50
 """
 
-CYCLE_PERFORMANCE = """
+LEGACY_CYCLE_PERFORMANCE = """
 SELECT
     CYCLE_TIMESTAMP,
     CORRELATION_ID,
@@ -102,23 +113,65 @@ FROM PRD_EDW_STG.UAM_MONITORING.JOB_REGISTRY
 ORDER BY PLATFORM
 """
 
-JOB_PERFORMANCE = """
+LEGACY_JOB_PERFORMANCE = """
 SELECT
-    PLATFORM,
-    JOB_NAME,
+    UPPER(e.PLATFORM)                                               AS PLATFORM,
+    COALESCE(MAX(r.JOB_NAME), e.JOB_NAME)                          AS JOB_NAME,
     COUNT(*)                                                        AS TOTAL_RUNS,
-    SUM(CASE WHEN STATUS = 'SUCCESS' THEN 1 ELSE 0 END)            AS SUCCESSFUL_RUNS,
-    SUM(CASE WHEN STATUS = 'FAILED'  THEN 1 ELSE 0 END)            AS FAILED_RUNS,
+    SUM(CASE WHEN e.STATUS = 'SUCCESS' THEN 1 ELSE 0 END)          AS SUCCESSFUL_RUNS,
+    SUM(CASE WHEN e.STATUS = 'FAILED'  THEN 1 ELSE 0 END)          AS FAILED_RUNS,
     ROUND(
-        SUM(CASE WHEN STATUS = 'SUCCESS' THEN 1 ELSE 0 END) * 100.0
+        SUM(CASE WHEN e.STATUS = 'SUCCESS' THEN 1 ELSE 0 END) * 100.0
         / NULLIF(COUNT(*), 0), 1
     )                                                               AS SUCCESS_RATE_PCT,
-    ROUND(AVG(DURATION_SECONDS), 1)                                 AS AVG_DURATION_SECONDS,
-    ROUND(MAX(DURATION_SECONDS), 1)                                 AS MAX_DURATION_SECONDS,
-    MAX(EVENT_TIME)                                                 AS LAST_RUN_TIME,
-    MIN(EVENT_TIME)                                                 AS FIRST_SEEN
-FROM MONITORING_EVENTS
-WHERE EVENT_TIME >= DATEADD(day, -30, CURRENT_TIMESTAMP())
-GROUP BY PLATFORM, JOB_NAME
+    ROUND(AVG(e.DURATION_SECONDS), 1)                               AS AVG_DURATION_SECONDS,
+    ROUND(MAX(e.DURATION_SECONDS), 1)                               AS MAX_DURATION_SECONDS,
+    MAX(e.EVENT_TIME)                                               AS LAST_RUN_TIME,
+    MIN(e.EVENT_TIME)                                               AS FIRST_SEEN,
+    MAX(r.PLATFORM_METADATA:solution_id::STRING)                    AS SOLUTION_ID,
+    MAX(r.PLATFORM_METADATA:solution_name::STRING)                  AS SOLUTION_NAME
+FROM MONITORING_EVENTS e
+LEFT JOIN PRD_EDW_STG.UAM_MONITORING.JOB_REGISTRY r
+    ON UPPER(r.PLATFORM) = UPPER(e.PLATFORM) AND UPPER(r.JOB_ID) = UPPER(e.JOB_NAME)
+WHERE e.EVENT_TIME >= DATEADD(day, -30, CURRENT_TIMESTAMP())
+GROUP BY UPPER(e.PLATFORM), e.JOB_NAME
 ORDER BY FAILED_RUNS DESC, TOTAL_RUNS DESC
 """
+
+JOB_REGISTRY = """
+SELECT
+    UPPER(PLATFORM)                                AS PLATFORM,
+    JOB_NAME,
+    PRIORITY,
+    DESCRIPTION,
+    BUSINESS_FUNCTION,
+    SLA_HOURS,
+    ENABLED,
+    PLATFORM_METADATA:solution_id::STRING          AS SOLUTION_ID,
+    PLATFORM_METADATA:solution_name::STRING        AS SOLUTION_NAME,
+    PLATFORM_METADATA:category::STRING             AS CATEGORY,
+    PLATFORM_METADATA:flow_type::STRING            AS FLOW_TYPE
+FROM PRD_EDW_STG.UAM_MONITORING.JOB_REGISTRY
+ORDER BY UPPER(PLATFORM), JOB_NAME
+"""
+
+HEALTH_SUMMARY = (
+    _semantic.HEALTH_SUMMARY if _USE_SEMANTIC_VIEWS else LEGACY_HEALTH_SUMMARY
+)
+STATUS_TREND = (
+    _semantic.STATUS_TREND if _USE_SEMANTIC_VIEWS else LEGACY_STATUS_TREND
+)
+PLATFORM_BREAKDOWN = (
+    _semantic.PLATFORM_BREAKDOWN
+    if _USE_SEMANTIC_VIEWS
+    else LEGACY_PLATFORM_BREAKDOWN
+)
+RECENT_FAILURES = (
+    _semantic.RECENT_FAILURES if _USE_SEMANTIC_VIEWS else LEGACY_RECENT_FAILURES
+)
+CYCLE_PERFORMANCE = (
+    _semantic.CYCLE_PERFORMANCE if _USE_SEMANTIC_VIEWS else LEGACY_CYCLE_PERFORMANCE
+)
+JOB_PERFORMANCE = (
+    _semantic.JOB_PERFORMANCE if _USE_SEMANTIC_VIEWS else LEGACY_JOB_PERFORMANCE
+)

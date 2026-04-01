@@ -72,54 +72,55 @@ export function PipelineHealthTrend({ data }: Props) {
         <BarChart data={chartData} barCategoryGap="20%">
           <XAxis
             dataKey="period"
-            tick={{ fill: "#666666", fontSize: 10 }}
+            tick={{ fill: "#9EA8B5", fontSize: 10 }}
             tickLine={false}
-            axisLine={{ stroke: "#2a2a2a" }}
+            axisLine={{ stroke: "rgba(0,0,0,0.06)" }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: "#666666", fontSize: 10 }}
+            tick={{ fill: "#9EA8B5", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             width={36}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#2a2a2a",
-              border: "1px solid #3a3a3a",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid rgba(0,0,0,0.1)",
               borderRadius: 8,
               fontSize: 12,
-              color: "#ffffff",
+              color: "#1A2744",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
             }}
-            cursor={{ fill: "rgba(232,130,42,0.06)" }}
+            cursor={{ fill: "rgba(26,111,224,0.06)" }}
           />
           <Legend
-            wrapperStyle={{ fontSize: 11, color: "#9ca3af" }}
+            wrapperStyle={{ fontSize: 11, color: "#4A5568" }}
             iconType="circle"
             iconSize={8}
           />
           <ReferenceLine
             x={todayLabel}
-            stroke="#e8822a"
+            stroke="#1A6FE0"
             strokeDasharray="4 4"
             strokeOpacity={0.5}
           />
           <Bar
             dataKey="SUCCESS"
             stackId="a"
-            fill="#e8822a"
+            fill="#1A6FE0"
             radius={[0, 0, 0, 0]}
           />
           <Bar
             dataKey="FAILED"
             stackId="a"
-            fill="#f87171"
+            fill="#E74C3C"
             radius={[0, 0, 0, 0]}
           />
           <Bar
             dataKey="CANCELLED"
             stackId="a"
-            fill="rgba(232,130,42,0.35)"
+            fill="#9EA8B5"
             radius={[2, 2, 0, 0]}
           />
         </BarChart>

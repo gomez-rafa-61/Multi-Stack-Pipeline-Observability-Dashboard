@@ -1,7 +1,7 @@
 """Pipeline Observability Dashboard — FastAPI backend.
 
-Serves the 6 analytics endpoints by running the view SQL directly
-against PRD_EDW_STG.UAM_MONITORING tables in Snowflake.
+Serves analytics from Snowflake (legacy table SQL or semantic views when
+USE_SEMANTIC_VIEWS=true) and optionally proxies Cortex Analyst.
 """
 
 from __future__ import annotations
@@ -11,14 +11,17 @@ from typing import Any
 
 import os
 
+import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, ConfigDict, Field
 
 from app import queries
+from app.cortex_analyst import post_message as cortex_post_message
 from app.snowflake_client import execute_query
 
-load_dotenv()
+load_dotenv(override=True)
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -39,7 +42,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -83,6 +86,11 @@ def job_performance() -> list[dict[str, Any]]:
     return _run(queries.JOB_PERFORMANCE)
 
 
+@app.get("/api/job-registry")
+def job_registry() -> list[dict[str, Any]]:
+    return _run(queries.JOB_REGISTRY)
+
+
 @app.get("/api/platforms")
 def platforms() -> list[str]:
     rows = _run(queries.PLATFORMS)
@@ -92,3 +100,26 @@ def platforms() -> list[str]:
 @app.get("/api/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+class CortexAnalystRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    message: str = Field(..., min_length=1, max_length=8000)
+    semantic_view: str | None = Field(None, alias="semanticView")
+
+
+@app.post("/api/cortex-analyst/message")
+def cortex_analyst_message(body: CortexAnalystRequest) -> dict[str, Any]:
+    try:
+        return cortex_post_message(
+            question=body.message, semantic_view=body.semantic_view
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except requests.HTTPError as exc:
+        detail = exc.response.text if exc.response is not None else str(exc)
+        raise HTTPException(status_code=502, detail=detail) from exc
+    except Exception as exc:
+        log.exception("Cortex Analyst request failed")
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

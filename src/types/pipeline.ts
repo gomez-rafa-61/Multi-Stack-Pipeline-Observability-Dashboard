@@ -70,4 +70,20 @@ export interface JobPerformanceRecord {
   maxDurationSeconds: number;
   lastRunTime: string;
   firstSeen: string;
+  solutionId?: string | null;
+  solutionName?: string | null;
+}
+
+export interface JobRegistryRecord {
+  platform: string;
+  jobName: string;
+  priority: string;
+  description: string;
+  businessFunction: string;
+  slaHours: number;
+  enabled: boolean;
+  solutionId?: string | null;
+  solutionName?: string | null;
+  category?: string | null;
+  flowType?: string | null;
 }

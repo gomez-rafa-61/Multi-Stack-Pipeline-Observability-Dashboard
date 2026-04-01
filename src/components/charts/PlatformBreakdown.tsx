@@ -64,7 +64,7 @@ export function PlatformBreakdown({ data }: Props) {
                   {p.successRatePct.toFixed(1)}%
                 </span>
               </div>
-              <div className="h-2 bg-border-default rounded-full overflow-hidden">
+              <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(0,0,0,0.06)" }}>
                 <div
                   className="h-full rounded-full"
                   style={{

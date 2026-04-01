@@ -5,6 +5,7 @@ import { useRefresh } from "@/context/refresh-context";
 const routeLabels: Record<string, string> = {
   "/overview": "Overview",
   "/jobs": "Job Performance",
+  "/registry": "Job Registry",
 };
 
 function formatRelativeTime(date: Date): string {
@@ -21,16 +22,16 @@ export function Header() {
   const { lastUpdated, refreshing, refreshAll } = useRefresh();
 
   return (
-    <header className="sticky top-0 h-14 bg-bg-surface border-b border-border-elevated flex items-center justify-between px-5 z-10">
+    <header className="sticky top-0 h-14 bg-[var(--color-nav-bg)] border-b border-white/10 flex items-center justify-between px-5 z-10">
       <div className="flex items-center gap-1.5 text-sm">
-        <span className="text-text-secondary">Dashboard</span>
-        <span className="text-text-muted">›</span>
-        <span className="text-accent">{currentLabel}</span>
+        <span className="text-white/60">Dashboard</span>
+        <span className="text-white/30">&rsaquo;</span>
+        <span className="text-white font-medium">{currentLabel}</span>
       </div>
 
       <div className="flex items-center gap-3">
         {lastUpdated && (
-          <span className="text-[11px] text-text-muted tabular-nums">
+          <span className="text-[11px] text-white/50 tabular-nums">
             Updated {formatRelativeTime(lastUpdated)}
           </span>
         )}
@@ -39,38 +40,38 @@ export function Header() {
           onClick={refreshAll}
           disabled={refreshing}
           title="Refresh data"
-          className="w-8 h-8 rounded-lg bg-border-default border border-border-input flex items-center justify-center text-text-secondary hover:text-accent disabled:opacity-50 transition-colors duration-200"
+          className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/15 disabled:opacity-50 transition-colors duration-200"
         >
           <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
         </button>
 
-        <div className="w-px h-5 bg-border-elevated" />
+        <div className="w-px h-5 bg-white/15" />
 
         <div className="relative">
           <Search
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
           />
           <input
             type="text"
             placeholder="Search..."
-            className="w-56 h-8 pl-8 pr-12 bg-border-default border border-border-input rounded-lg text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent transition-colors duration-200"
+            className="w-56 h-8 pl-8 pr-12 bg-white/10 border border-white/15 rounded-lg text-sm text-white placeholder:text-white/40 outline-none focus:border-accent transition-colors duration-200"
           />
-          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-text-muted bg-bg-primary px-1.5 py-0.5 rounded border border-border-elevated">
+          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-white/40 bg-white/10 px-1.5 py-0.5 rounded border border-white/15">
             ⌘ K
           </kbd>
         </div>
 
-        <button className="w-8 h-8 rounded-lg bg-border-default border border-border-input flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors duration-200">
+        <button className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/15 transition-colors duration-200">
           <Bell size={15} />
         </button>
-        <button className="w-8 h-8 rounded-lg bg-border-default border border-border-input flex items-center justify-center text-text-secondary hover:text-text-primary transition-colors duration-200">
+        <button className="w-8 h-8 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/15 transition-colors duration-200">
           <Monitor size={15} />
         </button>
 
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent to-amber-600 p-[2px]">
-          <div className="w-full h-full rounded-full bg-bg-surface flex items-center justify-center">
-            <User size={15} className="text-text-secondary" />
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent to-blue-400 p-[2px]">
+          <div className="w-full h-full rounded-full bg-[var(--color-nav-bg)] flex items-center justify-center">
+            <User size={15} className="text-white/70" />
           </div>
         </div>
       </div>

@@ -73,7 +73,7 @@ export function RecentFailuresTable({ data }: Props) {
               <tr
                 key={row.runId}
                 className={`border-b border-border-default transition-colors duration-200 hover:bg-surface-hover ${
-                  i % 2 === 1 ? "bg-[rgba(255,245,240,0.02)]" : ""
+                  i % 2 === 1 ? "bg-[rgba(0,0,0,0.02)]" : ""
                 }`}
               >
                 <td className="px-4 py-3 text-sm text-text-muted whitespace-nowrap">

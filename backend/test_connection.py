@@ -1,11 +1,10 @@
-"""Run this script directly to test Snowflake SSO and cache the token.
+"""Test the Snowflake connection using the configured auth method.
 
 Usage:
     cd backend
     python -u test_connection.py
 
-A browser window will open for Microsoft SSO. Complete the login.
-After that, the token is cached and the FastAPI backend reuses it.
+Auth is controlled by SNOWFLAKE_AUTH_METHOD in .env (keypair or oauth).
 """
 
 import sys
@@ -16,8 +15,7 @@ load_dotenv()
 from app.snowflake_client import execute_query  # noqa: E402
 
 print("=" * 60, flush=True)
-print("Snowflake SSO Test — a browser window will open.", flush=True)
-print("Complete the Microsoft login to continue.", flush=True)
+print("Snowflake Connection Test", flush=True)
 print("=" * 60, flush=True)
 
 try:

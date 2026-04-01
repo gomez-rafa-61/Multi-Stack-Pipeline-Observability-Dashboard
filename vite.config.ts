@@ -18,4 +18,13 @@ export default defineConfig({
       },
     },
   },
+  // Same proxy as dev — without this, `npm run preview` serves /api/* as static files → 404 Not Found.
+  preview: {
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+      },
+    },
+  },
 });
