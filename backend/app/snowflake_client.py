@@ -3,6 +3,7 @@
 Authentication is selected via SNOWFLAKE_AUTH_METHOD env var:
   1. keypair (default) — RSA private key for service account auth
   2. oauth             — Azure AD Service Principal client_credentials grant
+  3. password          — Username / password (e.g. via Key Vault references in Azure)
 """
 
 from __future__ import annotations
@@ -23,7 +24,13 @@ _msal_app: Any = None
 
 
 def _load_private_key_der() -> bytes:
-    """Load RSA private key from PEM file and return DER-encoded PKCS8 bytes."""
+    """Load RSA private key and return DER-encoded PKCS8 bytes.
+
+    Reads from SNOWFLAKE_PRIVATE_KEY_B64 (base64-encoded PEM, preferred for
+    containers) or falls back to SNOWFLAKE_PRIVATE_KEY_PATH (file on disk).
+    """
+    import base64
+
     from cryptography.hazmat.primitives.serialization import (
         Encoding,
         NoEncryption,
@@ -31,12 +38,16 @@ def _load_private_key_der() -> bytes:
         load_pem_private_key,
     )
 
-    key_path = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH", "snowflake_rsa_key.p8")
     passphrase_str = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE", "")
     passphrase = passphrase_str.encode() if passphrase_str else None
 
-    with open(key_path, "rb") as f:
-        pem_data = f.read()
+    b64_key = os.environ.get("SNOWFLAKE_PRIVATE_KEY_B64", "")
+    if b64_key:
+        pem_data = base64.b64decode(b64_key)
+    else:
+        key_path = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH", "snowflake_rsa_key.p8")
+        with open(key_path, "rb") as f:
+            pem_data = f.read()
 
     key = load_pem_private_key(pem_data, password=passphrase)
     return key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())
@@ -91,6 +102,10 @@ def _get_connection() -> snowflake.connector.SnowflakeConnection:
         if user:
             conn_params["user"] = user
         auth_label = "OAuth"
+    elif auth_method == "password":
+        conn_params["user"] = os.environ["SNOWFLAKE_USER"]
+        conn_params["password"] = os.environ["SNOWFLAKE_PASSWORD"]
+        auth_label = "Password"
     else:
         conn_params["user"] = os.environ["SNOWFLAKE_USER"]
         conn_params["private_key"] = _load_private_key_der()
