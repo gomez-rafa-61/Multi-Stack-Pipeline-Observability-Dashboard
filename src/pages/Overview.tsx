@@ -3,6 +3,7 @@ import { MetricCard } from "@/components/metrics/MetricCard";
 import { PipelineHealthTrend } from "@/components/charts/PipelineHealthTrend";
 import { PlatformBreakdown } from "@/components/charts/PlatformBreakdown";
 import { RecentFailuresTable } from "@/components/tables/RecentFailuresTable";
+import { CortexAnalystPanel } from "@/components/ui/CortexAnalystPanel";
 import { api } from "@/services/api-client";
 import { usePolling } from "@/hooks/use-polling";
 import { useRefresh } from "@/context/refresh-context";
@@ -62,6 +63,7 @@ export function Overview() {
           change="+0.3% from yesterday"
           changeType={successRate >= 95 ? "positive" : "negative"}
           sparkHeights={[65, 70, 60, 85, 95]}
+          category="rate"
         />
         <MetricCard
           label="Total Runs"
@@ -69,6 +71,7 @@ export function Overview() {
           change="+12 from yesterday"
           changeType="positive"
           sparkHeights={[40, 55, 50, 70, 80]}
+          category="count"
         />
         <MetricCard
           label="Active Failures"
@@ -80,6 +83,7 @@ export function Overview() {
           }
           changeType={failedRuns === 0 ? "positive" : "negative"}
           sparkHeights={[90, 60, 40, 30, 20]}
+          category="count"
         />
         <MetricCard
           label="Avg Duration"
@@ -87,6 +91,7 @@ export function Overview() {
           change="-0.2 min from yesterday"
           changeType="positive"
           sparkHeights={[50, 45, 55, 40, 35]}
+          category="time"
         />
       </div>
 
@@ -100,6 +105,8 @@ export function Overview() {
       </div>
 
       <RecentFailuresTable data={failures.data ?? []} />
+
+      <CortexAnalystPanel />
     </div>
   );
 }

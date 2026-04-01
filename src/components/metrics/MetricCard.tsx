@@ -1,5 +1,13 @@
-import { Info } from "lucide-react";
 import { Sparkline } from "./Sparkline";
+
+type KpiCategory = "monetary" | "count" | "rate" | "time";
+
+const categoryBg: Record<KpiCategory, string> = {
+  monetary: "var(--color-kpi-monetary)",
+  count: "var(--color-kpi-count)",
+  rate: "var(--color-kpi-rate)",
+  time: "var(--color-kpi-time)",
+};
 
 interface MetricCardProps {
   label: string;
@@ -7,34 +15,32 @@ interface MetricCardProps {
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
   sparkHeights?: number[];
+  category?: KpiCategory;
 }
 
 export function MetricCard({
   label,
   value,
   change,
-  changeType = "positive",
   sparkHeights,
+  category = "count",
 }: MetricCardProps) {
-  const changeColor =
-    changeType === "positive"
-      ? "text-success"
-      : changeType === "negative"
-        ? "text-danger"
-        : "text-text-muted";
-
   return (
-    <div className="bg-bg-surface border border-border-default rounded-xl p-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted mb-3">
+    <div
+      className="rounded-xl p-4 flex flex-col justify-between min-h-[110px]"
+      style={{ backgroundColor: categoryBg[category] }}
+    >
+      <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/70 mb-2">
         {label}
       </p>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-2xl font-bold text-text-primary">{value}</span>
+      <div className="flex items-end justify-between">
+        <div>
+          <span className="text-2xl font-bold text-white">{value}</span>
+          {change && (
+            <p className="text-xs text-white/70 mt-1">{change}</p>
+          )}
+        </div>
         <Sparkline heights={sparkHeights} />
-      </div>
-      <div className="border-t border-border-default pt-3 flex items-center gap-2">
-        <Info size={12} className="text-text-muted" />
-        {change && <span className={`text-xs ${changeColor}`}>{change}</span>}
       </div>
     </div>
   );

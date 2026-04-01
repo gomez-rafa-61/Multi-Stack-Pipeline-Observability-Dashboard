@@ -14,7 +14,7 @@ export function Sparkline({ heights = DEFAULT_HEIGHTS }: SparklineProps) {
           style={{
             height: `${h}%`,
             backgroundColor:
-              i < 2 ? "rgba(232,130,42,0.4)" : "var(--color-accent)",
+              i < 2 ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.85)",
           }}
         />
       ))}

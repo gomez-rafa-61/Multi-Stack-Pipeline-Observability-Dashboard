@@ -33,7 +33,7 @@ Start backend first (`uvicorn` on port 8000), then frontend (`npm run dev`). Vit
 ### Backend (`backend/app/`)
 - **FastAPI** with 7 API endpoints under `/api/` prefix, plus `/api/health`
 - **No ORM:** Raw SQL queries defined as constants in `queries.py`, executed against Snowflake analytics views in `PRD_EDW_STG.UAM_MONITORING`
-- **Snowflake auth** (`snowflake_client.py`): Tries PAT token first, then SSO (`externalbrowser`), then password. Caches a global connection and auto-reconnects on failure.
+- **Snowflake auth** (`snowflake_client.py`): Service principal auth via `SNOWFLAKE_AUTH_METHOD` env var — key pair (RSA `.p8` file, default) or Azure AD OAuth (MSAL client_credentials). Caches a global connection and auto-reconnects on failure.
 - **CORS:** Allows `localhost:5173` (dev) and `localhost:4173` (preview)
 
 ### Data flow

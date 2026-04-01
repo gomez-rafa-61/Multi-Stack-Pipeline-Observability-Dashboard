@@ -8,6 +8,7 @@ tsconfig.tsbuildinfo
 # Environment / secrets
 backend/.env
 .env
+*.p8
 
 # Python
 __pycache__/
@@ -26,3 +27,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local Snowflake semantic discovery dumps (optional)
+backend/semantic_describe_*.json

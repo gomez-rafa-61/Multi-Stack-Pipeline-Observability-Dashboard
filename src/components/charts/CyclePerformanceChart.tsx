@@ -45,13 +45,13 @@ export function CyclePerformanceChart({ data }: Props) {
         <LineChart data={chartData}>
           <XAxis
             dataKey="time"
-            tick={{ fill: "#666666", fontSize: 10 }}
+            tick={{ fill: "#9EA8B5", fontSize: 10 }}
             tickLine={false}
-            axisLine={{ stroke: "#2a2a2a" }}
+            axisLine={{ stroke: "rgba(0,0,0,0.06)" }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: "#666666", fontSize: 10 }}
+            tick={{ fill: "#9EA8B5", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             width={42}
@@ -59,35 +59,36 @@ export function CyclePerformanceChart({ data }: Props) {
               value: "seconds",
               angle: -90,
               position: "insideLeft",
-              style: { fill: "#666666", fontSize: 10 },
+              style: { fill: "#9EA8B5", fontSize: 10 },
             }}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#2a2a2a",
-              border: "1px solid #3a3a3a",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid rgba(0,0,0,0.1)",
               borderRadius: 8,
               fontSize: 12,
-              color: "#ffffff",
+              color: "#1A2744",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
             }}
           />
           <ReferenceLine
             y={300}
-            stroke="#f87171"
+            stroke="#E74C3C"
             strokeDasharray="6 3"
             label={{
               value: "5-min target",
               position: "right",
-              style: { fill: "#f87171", fontSize: 10 },
+              style: { fill: "#E74C3C", fontSize: 10 },
             }}
           />
           <Line
             type="monotone"
             dataKey="duration"
-            stroke="#e8822a"
+            stroke="#1A6FE0"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 4, fill: "#e8822a" }}
+            activeDot={{ r: 4, fill: "#1A6FE0" }}
           />
         </LineChart>
       </ResponsiveContainer>
