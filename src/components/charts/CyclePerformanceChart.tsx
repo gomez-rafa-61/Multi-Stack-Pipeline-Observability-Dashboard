@@ -34,8 +34,8 @@ export function CyclePerformanceChart({ data }: Props) {
   }, [data]);
 
   return (
-    <div className="bg-bg-surface border border-border-default rounded-xl p-4">
-      <h3 className="text-sm font-semibold text-text-primary mb-4">
+    <div className="bg-bg-surface border border-border-default rounded-[14px] p-4 shadow-[var(--shadow-card)]">
+      <h3 className="text-sm font-semibold tracking-[-0.01em] text-text-primary mb-4">
         UAM Cycle Performance
         <span className="text-text-muted font-normal ml-2 text-xs">
           Last 48 cycles
@@ -45,13 +45,13 @@ export function CyclePerformanceChart({ data }: Props) {
         <LineChart data={chartData}>
           <XAxis
             dataKey="time"
-            tick={{ fill: "#9EA8B5", fontSize: 10 }}
+            tick={{ fill: "#A1A1AA", fontSize: 10 }}
             tickLine={false}
-            axisLine={{ stroke: "rgba(0,0,0,0.06)" }}
+            axisLine={{ stroke: "#E4E4E7" }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: "#9EA8B5", fontSize: 10 }}
+            tick={{ fill: "#A1A1AA", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             width={42}
@@ -59,36 +59,36 @@ export function CyclePerformanceChart({ data }: Props) {
               value: "seconds",
               angle: -90,
               position: "insideLeft",
-              style: { fill: "#9EA8B5", fontSize: 10 },
+              style: { fill: "#A1A1AA", fontSize: 10 },
             }}
           />
           <Tooltip
             contentStyle={{
               backgroundColor: "#FFFFFF",
-              border: "1px solid rgba(0,0,0,0.1)",
-              borderRadius: 8,
+              border: "1px solid #E4E4E7",
+              borderRadius: 10,
               fontSize: 12,
-              color: "#1A2744",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              color: "#18181B",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
             }}
           />
           <ReferenceLine
             y={300}
-            stroke="#E74C3C"
+            stroke="#DC2626"
             strokeDasharray="6 3"
             label={{
               value: "5-min target",
               position: "right",
-              style: { fill: "#E74C3C", fontSize: 10 },
+              style: { fill: "#DC2626", fontSize: 10 },
             }}
           />
           <Line
             type="monotone"
             dataKey="duration"
-            stroke="#1A6FE0"
+            stroke="#2563EB"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 4, fill: "#1A6FE0" }}
+            activeDot={{ r: 4, fill: "#2563EB" }}
           />
         </LineChart>
       </ResponsiveContainer>

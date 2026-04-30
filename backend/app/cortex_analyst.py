@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import Any, Optional
 
 import requests
 
@@ -52,7 +52,7 @@ def _request_headers() -> dict[str, str]:
     return headers
 
 
-def post_message(*, question: str, semantic_view: str | None = None) -> dict[str, Any]:
+def post_message(*, question: str, semantic_view: Optional[str] = None) -> dict[str, Any]:
     """POST a user question to Cortex Analyst using a fully qualified semantic view name."""
     db = os.environ.get("SNOWFLAKE_DATABASE", "PRD_EDW_STG")
     schema = os.environ.get("SNOWFLAKE_SCHEMA", "UAM_MONITORING")

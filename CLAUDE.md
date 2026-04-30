@@ -14,8 +14,8 @@ Full-stack observability dashboard for monitoring data pipelines across Databric
 - **Preview:** `npm run preview` (http://localhost:4173)
 
 ### Backend (from `backend/` directory)
-- **Start API:** `python -m uvicorn app.main:app --port 8000`
-- **Test Snowflake connection:** `python test_connection.py`
+- **Start API:** `python3 -m uvicorn app.main:app --port 8000` (use `python` on Windows if available)
+- **Test Snowflake connection:** `python3 test_connection.py`
 
 ### Full-stack development
 Start backend first (`uvicorn` on port 8000), then frontend (`npm run dev`). Vite proxies `/api` requests to the backend automatically via `vite.config.ts`.

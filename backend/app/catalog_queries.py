@@ -1,0 +1,267 @@
+"""SQL queries for the Pipeline Catalog Portal.
+
+All catalog tables live in PRD_EDW_STG.UAM_MONITORING alongside JOB_REGISTRY.
+
+ERD:
+  PIPELINE_CATALOG  1 ──< PIPELINE_CATALOG_ENTITY
+  PIPELINE_CATALOG  1 ──< CATALOG_LINEAGE
+  PIPELINE_CATALOG  1 ──< CATALOG_DIAGRAMS
+  PIPELINE_CATALOG  1 ──< CATALOG_DOCUMENTS
+"""
+
+_SCHEMA = "PRD_EDW_STG.UAM_MONITORING"
+
+SELECT_ALL_CATALOG = f"""
+SELECT
+    c.CATALOG_ID,
+    c.PLATFORM,
+    c.PIPELINE_NAME,
+    c.PIPELINE_DESCRIPTION,
+    c.BUSINESS_SEGMENT,
+    c.DATA_PROVIDER,
+    c.DATA_DIRECTION,
+    c.CONNECTION_TYPE,
+    c.DATA_ENVIRONMENT,
+    c.OWNER_NAME,
+    c.OWNER_EMAIL,
+    c.ENGINEER_NAME,
+    c.ENGINEER_EMAIL,
+    c.IS_DOCUMENTED,
+    c.TAGS,
+    c.DATA_CLASSIFICATION,
+    c.REFRESH_FREQUENCY,
+    c.CATALOG_STATUS,
+    c.DEPRECATION_DATE,
+    c.LAST_CATALOG_UPDATE,
+    c.UPDATED_BY,
+    c.CREATED_AT,
+    c.CREATED_BY,
+    r.PRIORITY,
+    r.SLA_HOURS,
+    r.ENABLED,
+    r.BUSINESS_FUNCTION
+FROM {_SCHEMA}.PIPELINE_CATALOG c
+LEFT JOIN {_SCHEMA}.JOB_REGISTRY r
+    ON UPPER(r.PLATFORM) = UPPER(c.PLATFORM)
+   AND UPPER(TRIM(r.JOB_NAME)) = UPPER(TRIM(c.PIPELINE_NAME))
+ORDER BY c.PLATFORM, c.PIPELINE_NAME
+"""
+
+SELECT_CATALOG_BY_ID = f"""
+SELECT
+    c.CATALOG_ID,
+    c.PLATFORM,
+    c.PIPELINE_NAME,
+    c.PIPELINE_DESCRIPTION,
+    c.BUSINESS_SEGMENT,
+    c.DATA_PROVIDER,
+    c.DATA_DIRECTION,
+    c.CONNECTION_TYPE,
+    c.DATA_ENVIRONMENT,
+    c.OWNER_NAME,
+    c.OWNER_EMAIL,
+    c.ENGINEER_NAME,
+    c.ENGINEER_EMAIL,
+    c.IS_DOCUMENTED,
+    c.TAGS,
+    c.DATA_CLASSIFICATION,
+    c.REFRESH_FREQUENCY,
+    c.CATALOG_STATUS,
+    c.DEPRECATION_DATE,
+    c.LAST_CATALOG_UPDATE,
+    c.UPDATED_BY,
+    c.CREATED_AT,
+    c.CREATED_BY,
+    r.PRIORITY,
+    r.SLA_HOURS,
+    r.ENABLED,
+    r.BUSINESS_FUNCTION
+FROM {_SCHEMA}.PIPELINE_CATALOG c
+LEFT JOIN {_SCHEMA}.JOB_REGISTRY r
+    ON UPPER(r.PLATFORM) = UPPER(c.PLATFORM)
+   AND UPPER(TRIM(r.JOB_NAME)) = UPPER(TRIM(c.PIPELINE_NAME))
+WHERE c.CATALOG_ID = %(catalog_id)s
+"""
+
+SELECT_ENTITIES_BY_CATALOG = f"""
+SELECT
+    ENTITY_ID,
+    CATALOG_ID,
+    ENTITY_NAME,
+    ENTITY_DESCRIPTION,
+    DATABASE_DETAILS,
+    URI
+FROM {_SCHEMA}.PIPELINE_CATALOG_ENTITY
+WHERE CATALOG_ID = %(catalog_id)s
+ORDER BY ENTITY_NAME
+"""
+
+SELECT_LINEAGE_ALL = f"""
+SELECT
+    LINEAGE_ID,
+    SOURCE_CATALOG_ID,
+    TARGET_CATALOG_ID,
+    RELATIONSHIP_TYPE,
+    DESCRIPTION
+FROM {_SCHEMA}.CATALOG_LINEAGE
+ORDER BY CREATED_AT
+"""
+
+SELECT_ENTITY_LINEAGE_ALL = f"""
+SELECT
+    c.CATALOG_ID,
+    c.PLATFORM,
+    c.PIPELINE_NAME,
+    c.DATA_PROVIDER,
+    e.ENTITY_ID,
+    e.ENTITY_NAME,
+    e.DATABASE_DETAILS,
+    NULLIF(TRIM(SPLIT_PART(e.DATABASE_DETAILS, '|', 1)), '') AS SOURCE_TYPE,
+    NULLIF(TRIM(SPLIT_PART(e.DATABASE_DETAILS, '|', 2)), '') AS STREAM,
+    NULLIF(TRIM(SPLIT_PART(e.DATABASE_DETAILS, '|', 3)), '') AS DEST_DB,
+    NULLIF(TRIM(SPLIT_PART(e.DATABASE_DETAILS, '|', 4)), '') AS DATABASE,
+    NULLIF(TRIM(SPLIT_PART(e.DATABASE_DETAILS, '|', 5)), '') AS SCHEMA,
+    NULLIF(TRIM(SPLIT_PART(e.DATABASE_DETAILS, '|', 6)), '') AS TABLE_NAME
+FROM {_SCHEMA}.PIPELINE_CATALOG c
+JOIN {_SCHEMA}.PIPELINE_CATALOG_ENTITY e
+    ON e.CATALOG_ID = c.CATALOG_ID
+WHERE e.DATABASE_DETAILS IS NOT NULL
+ORDER BY c.DATA_PROVIDER, c.PIPELINE_NAME, e.ENTITY_NAME
+"""
+
+SELECT_DIAGRAMS_BY_CATALOG = f"""
+SELECT
+    DIAGRAM_ID,
+    CATALOG_ID,
+    TITLE,
+    URL,
+    DIAGRAM_TYPE,
+    THUMBNAIL_URL,
+    DESCRIPTION
+FROM {_SCHEMA}.CATALOG_DIAGRAMS
+WHERE CATALOG_ID = %(catalog_id)s
+ORDER BY CREATED_AT
+"""
+
+SELECT_DOCUMENTS_BY_CATALOG = f"""
+SELECT
+    DOCUMENT_ID,
+    CATALOG_ID,
+    TITLE,
+    URL,
+    DOC_TYPE,
+    DESCRIPTION
+FROM {_SCHEMA}.CATALOG_DOCUMENTS
+WHERE CATALOG_ID = %(catalog_id)s
+ORDER BY CREATED_AT
+"""
+
+INSERT_CATALOG = f"""
+INSERT INTO {_SCHEMA}.PIPELINE_CATALOG (
+    CATALOG_ID, PLATFORM, PIPELINE_NAME, PIPELINE_DESCRIPTION,
+    BUSINESS_SEGMENT, DATA_PROVIDER, DATA_DIRECTION, CONNECTION_TYPE,
+    DATA_ENVIRONMENT, OWNER_NAME, OWNER_EMAIL, ENGINEER_NAME, ENGINEER_EMAIL,
+    IS_DOCUMENTED, TAGS, DATA_CLASSIFICATION, REFRESH_FREQUENCY, CATALOG_STATUS,
+    DEPRECATION_DATE, LAST_CATALOG_UPDATE, UPDATED_BY, CREATED_AT, CREATED_BY
+)
+SELECT
+    %(catalog_id)s, %(platform)s, %(pipeline_name)s, %(pipeline_description)s,
+    %(business_segment)s, %(data_provider)s, %(data_direction)s, %(connection_type)s,
+    %(data_environment)s, %(owner_name)s, %(owner_email)s, %(engineer_name)s, %(engineer_email)s,
+    %(is_documented)s, __TAGS__, %(data_classification)s, %(refresh_frequency)s, %(catalog_status)s,
+    %(deprecation_date)s, CURRENT_TIMESTAMP(), %(created_by)s, CURRENT_TIMESTAMP(), %(created_by)s
+"""
+
+UPDATE_CATALOG = f"""
+UPDATE {_SCHEMA}.PIPELINE_CATALOG SET
+    PLATFORM                = %(platform)s,
+    PIPELINE_NAME           = %(pipeline_name)s,
+    PIPELINE_DESCRIPTION    = %(pipeline_description)s,
+    BUSINESS_SEGMENT        = %(business_segment)s,
+    DATA_PROVIDER           = %(data_provider)s,
+    DATA_DIRECTION          = %(data_direction)s,
+    CONNECTION_TYPE         = %(connection_type)s,
+    DATA_ENVIRONMENT        = %(data_environment)s,
+    OWNER_NAME              = %(owner_name)s,
+    OWNER_EMAIL             = %(owner_email)s,
+    ENGINEER_NAME           = %(engineer_name)s,
+    ENGINEER_EMAIL          = %(engineer_email)s,
+    IS_DOCUMENTED           = %(is_documented)s,
+    TAGS                    = __TAGS__,
+    DATA_CLASSIFICATION     = %(data_classification)s,
+    REFRESH_FREQUENCY       = %(refresh_frequency)s,
+    CATALOG_STATUS          = %(catalog_status)s,
+    DEPRECATION_DATE        = %(deprecation_date)s,
+    LAST_CATALOG_UPDATE     = CURRENT_TIMESTAMP(),
+    UPDATED_BY              = %(updated_by)s
+WHERE CATALOG_ID = %(catalog_id)s
+"""
+
+INSERT_ENTITY = f"""
+INSERT INTO {_SCHEMA}.PIPELINE_CATALOG_ENTITY (
+    ENTITY_ID, CATALOG_ID, ENTITY_NAME, ENTITY_DESCRIPTION,
+    DATABASE_DETAILS, URI, CREATED_AT, CREATED_BY
+)
+SELECT
+    %(entity_id)s, %(catalog_id)s, %(entity_name)s, %(entity_description)s,
+    %(database_details)s, %(uri)s, CURRENT_TIMESTAMP(), %(created_by)s
+"""
+
+UPDATE_ENTITY = f"""
+UPDATE {_SCHEMA}.PIPELINE_CATALOG_ENTITY SET
+    ENTITY_NAME         = %(entity_name)s,
+    ENTITY_DESCRIPTION  = %(entity_description)s,
+    DATABASE_DETAILS    = %(database_details)s,
+    URI                 = %(uri)s
+WHERE ENTITY_ID = %(entity_id)s
+"""
+
+DELETE_ENTITY = f"""
+DELETE FROM {_SCHEMA}.PIPELINE_CATALOG_ENTITY
+WHERE ENTITY_ID = %(entity_id)s
+"""
+
+INSERT_LINEAGE = f"""
+INSERT INTO {_SCHEMA}.CATALOG_LINEAGE (
+    LINEAGE_ID, SOURCE_CATALOG_ID, TARGET_CATALOG_ID,
+    RELATIONSHIP_TYPE, DESCRIPTION, CREATED_AT, CREATED_BY
+)
+SELECT
+    %(lineage_id)s, %(source_catalog_id)s, %(target_catalog_id)s,
+    %(relationship_type)s, %(description)s, CURRENT_TIMESTAMP(), %(created_by)s
+"""
+
+DELETE_LINEAGE = f"""
+DELETE FROM {_SCHEMA}.CATALOG_LINEAGE
+WHERE LINEAGE_ID = %(lineage_id)s
+"""
+
+INSERT_DIAGRAM = f"""
+INSERT INTO {_SCHEMA}.CATALOG_DIAGRAMS (
+    DIAGRAM_ID, CATALOG_ID, TITLE, URL,
+    DIAGRAM_TYPE, THUMBNAIL_URL, DESCRIPTION, CREATED_AT, CREATED_BY
+)
+SELECT
+    %(diagram_id)s, %(catalog_id)s, %(title)s, %(url)s,
+    %(diagram_type)s, %(thumbnail_url)s, %(description)s, CURRENT_TIMESTAMP(), %(created_by)s
+"""
+
+DELETE_DIAGRAM = f"""
+DELETE FROM {_SCHEMA}.CATALOG_DIAGRAMS
+WHERE DIAGRAM_ID = %(diagram_id)s
+"""
+
+INSERT_DOCUMENT = f"""
+INSERT INTO {_SCHEMA}.CATALOG_DOCUMENTS (
+    DOCUMENT_ID, CATALOG_ID, TITLE, URL,
+    DOC_TYPE, DESCRIPTION, CREATED_AT, CREATED_BY
+)
+SELECT
+    %(document_id)s, %(catalog_id)s, %(title)s, %(url)s,
+    %(doc_type)s, %(description)s, CURRENT_TIMESTAMP(), %(created_by)s
+"""
+
+DELETE_DOCUMENT = f"""
+DELETE FROM {_SCHEMA}.CATALOG_DOCUMENTS
+WHERE DOCUMENT_ID = %(document_id)s
+"""

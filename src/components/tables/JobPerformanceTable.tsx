@@ -3,13 +3,17 @@ import {
   ChevronRight,
   ChevronDown,
   FolderOpen,
+  Tag,
 } from "lucide-react";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { PlatformBadge } from "@/components/ui/PlatformBadge";
+import { JobNameText } from "@/components/ui/JobNameText";
 import { getPlatformDisplayName } from "@/config/platform-meta";
-import type { JobPerformanceRecord } from "@/types/pipeline";
+import type { JobPerformanceRecord, JobRegistryRecord } from "@/types/pipeline";
 
 interface Props {
   data: JobPerformanceRecord[];
+  registry?: JobRegistryRecord[];
   initialPlatform?: string;
 }
 
@@ -17,15 +21,15 @@ type SortKey = keyof JobPerformanceRecord;
 type SortDir = "asc" | "desc";
 
 function rateBackground(rate: number): string {
-  if (rate >= 99) return "rgba(46,173,110,0.1)";
-  if (rate >= 95) return "rgba(245,166,35,0.1)";
-  return "rgba(231,76,60,0.1)";
+  if (rate >= 99) return "rgba(22,163,74,0.08)";
+  if (rate >= 95) return "rgba(217,119,6,0.08)";
+  return "rgba(220,38,38,0.08)";
 }
 
 function rateColor(rate: number): string {
-  if (rate >= 99) return "var(--color-success)";
-  if (rate >= 95) return "var(--color-warning)";
-  return "var(--color-danger)";
+  if (rate >= 99) return "#16A34A";
+  if (rate >= 95) return "#D97706";
+  return "#DC2626";
 }
 
 function formatDuration(seconds: number): string {
@@ -42,24 +46,38 @@ function formatRelativeTime(iso: string): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-interface SolutionPerfGroup {
-  solutionId: string;
-  solutionName: string;
+interface PerfJobGroup {
+  groupId: string;
+  groupTitle: string;
+  groupSubtitle?: string;
+  kind: "solution" | "tag";
   jobs: JobPerformanceRecord[];
   totalRuns: number;
   failedRuns: number;
   successRatePct: number;
 }
 
-function groupBySolution(rows: JobPerformanceRecord[]): SolutionPerfGroup[] {
-  const map = new Map<string, SolutionPerfGroup>();
+function finalizePerfGroups(map: Map<string, PerfJobGroup>): PerfJobGroup[] {
+  for (const g of map.values()) {
+    const successRuns = g.jobs.reduce((s, r) => s + Number(r.successfulRuns), 0);
+    g.successRatePct = g.totalRuns > 0
+      ? Math.round((successRuns / g.totalRuns) * 1000) / 10
+      : 0;
+  }
+  return [...map.values()].sort((a, b) => a.groupTitle.localeCompare(b.groupTitle));
+}
+
+function groupBySolution(rows: JobPerformanceRecord[]): PerfJobGroup[] {
+  const map = new Map<string, PerfJobGroup>();
   for (const row of rows) {
     const id = row.solutionId ?? "_ungrouped";
-    const name = row.solutionName ?? "Ungrouped Flows";
+    const title = row.solutionName ?? "Ungrouped flows";
     if (!map.has(id)) {
       map.set(id, {
-        solutionId: id,
-        solutionName: name,
+        groupId: id,
+        groupTitle: title,
+        groupSubtitle: id !== "_ungrouped" ? id : undefined,
+        kind: "solution",
         jobs: [],
         totalRuns: 0,
         failedRuns: 0,
@@ -71,16 +89,63 @@ function groupBySolution(rows: JobPerformanceRecord[]): SolutionPerfGroup[] {
     g.totalRuns += Number(row.totalRuns);
     g.failedRuns += Number(row.failedRuns);
   }
-  for (const g of map.values()) {
-    const successRuns = g.jobs.reduce((s, r) => s + Number(r.successfulRuns), 0);
-    g.successRatePct = g.totalRuns > 0
-      ? Math.round((successRuns / g.totalRuns) * 1000) / 10
-      : 0;
-  }
-  return [...map.values()].sort((a, b) => a.solutionName.localeCompare(b.solutionName));
+  return finalizePerfGroups(map);
 }
 
-export function JobPerformanceTable({ data, initialPlatform }: Props) {
+function groupBySnowflakeTag(rows: JobPerformanceRecord[]): PerfJobGroup[] {
+  const map = new Map<string, PerfJobGroup>();
+  for (const row of rows) {
+    const raw = row.tag?.trim();
+    const id = raw ? `tag:${raw}` : "_untagged";
+    const title = raw || "Ungrouped jobs";
+    if (!map.has(id)) {
+      map.set(id, {
+        groupId: id,
+        groupTitle: title,
+        kind: "tag",
+        jobs: [],
+        totalRuns: 0,
+        failedRuns: 0,
+        successRatePct: 0,
+      });
+    }
+    const g = map.get(id)!;
+    g.jobs.push(row);
+    g.totalRuns += Number(row.totalRuns);
+    g.failedRuns += Number(row.failedRuns);
+  }
+  return finalizePerfGroups(map);
+}
+
+function jobKey(platform: string, jobName: string): string {
+  return `${platform.toUpperCase()}\0${jobName.trim().toUpperCase()}`;
+}
+
+function mergeSnowflakeTagsFromRegistry(
+  rows: JobPerformanceRecord[],
+  registry: JobRegistryRecord[],
+): JobPerformanceRecord[] {
+  if (registry.length === 0) return rows;
+  const tagByJob = new Map<string, string>();
+  for (const j of registry) {
+    if (j.platform !== "SNOWFLAKE") continue;
+    const t = j.tag?.trim();
+    if (!t) continue;
+    tagByJob.set(jobKey("SNOWFLAKE", j.jobName), t);
+  }
+  if (tagByJob.size === 0) return rows;
+  return rows.map((row) => {
+    if (row.platform !== "SNOWFLAKE" || row.tag?.trim()) return row;
+    const t = tagByJob.get(jobKey(row.platform, row.jobName));
+    return t ? { ...row, tag: t } : row;
+  });
+}
+
+export function JobPerformanceTable({
+  data,
+  registry = [],
+  initialPlatform,
+}: Props) {
   const [search, setSearch] = useState("");
   const [platformFilter, setPlatformFilter] = useState<string>(
     initialPlatform ?? "ALL"
@@ -94,13 +159,18 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
     setCollapsed(new Set());
   }, [initialPlatform]);
 
+  const dataWithTags = useMemo(
+    () => mergeSnowflakeTagsFromRegistry(data, registry),
+    [data, registry],
+  );
+
   const platforms = useMemo(
-    () => Array.from(new Set(data.map((d) => d.platform))).sort(),
-    [data]
+    () => Array.from(new Set(dataWithTags.map((d) => d.platform))).sort(),
+    [dataWithTags],
   );
 
   const filtered = useMemo(() => {
-    let rows = data;
+    let rows = dataWithTags;
     if (platformFilter !== "ALL") {
       rows = rows.filter((r) => r.platform === platformFilter);
     }
@@ -110,7 +180,8 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
         (r) =>
           r.jobName.toLowerCase().includes(q) ||
           r.platform.toLowerCase().includes(q) ||
-          (r.solutionName ?? "").toLowerCase().includes(q)
+          (r.solutionName ?? "").toLowerCase().includes(q) ||
+          (r.tag ?? "").toLowerCase().includes(q)
       );
     }
     const numericKeys = new Set([
@@ -128,13 +199,16 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
         : String(bv).localeCompare(String(av));
     });
     return sorted;
-  }, [data, search, platformFilter, sortKey, sortDir]);
+  }, [dataWithTags, search, platformFilter, sortKey, sortDir]);
 
-  const isPowerAutomate = platformFilter === "POWER_AUTOMATE";
-  const solutionGroups = useMemo(
-    () => (isPowerAutomate ? groupBySolution(filtered) : []),
-    [isPowerAutomate, filtered],
-  );
+  const perfGroups = useMemo(() => {
+    if (platformFilter === "POWER_AUTOMATE") return groupBySolution(filtered);
+    if (platformFilter === "SNOWFLAKE" && filtered.some((r) => r.tag?.trim())) {
+      return groupBySnowflakeTag(filtered);
+    }
+    return null;
+  }, [platformFilter, filtered]);
+  const isGroupedLayout = perfGroups != null;
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -150,18 +224,21 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
     return sortDir === "asc" ? " ↑" : " ↓";
   }
 
-  function toggleGroup(solutionId: string) {
+  function toggleGroup(groupId: string) {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(solutionId)) next.delete(solutionId);
-      else next.add(solutionId);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
       return next;
     });
   }
 
-  const columns: Array<{ key: SortKey; label: string }> = isPowerAutomate
+  const columns: Array<{ key: SortKey; label: string }> = isGroupedLayout
     ? [
-        { key: "jobName", label: "Flow Name" },
+        {
+          key: "jobName",
+          label: platformFilter === "POWER_AUTOMATE" ? "Flow Name" : "Job Name",
+        },
         { key: "totalRuns", label: "Runs" },
         { key: "successRatePct", label: "Success Rate" },
         { key: "avgDurationSeconds", label: "Avg Duration" },
@@ -183,9 +260,9 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
   const colCount = columns.length;
 
   return (
-    <div className="bg-bg-surface border border-border-default rounded-xl">
+    <div className="bg-bg-surface border border-border-default rounded-[14px] shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between p-4 border-b border-border-default">
-        <h3 className="text-sm font-semibold text-text-primary">
+        <h3 className="text-sm font-semibold tracking-[-0.01em] text-text-primary">
           Job Performance
           <span className="text-text-muted font-normal ml-2 text-xs">
             30 Days
@@ -195,7 +272,7 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
           <select
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
-            className="h-8 px-3 bg-bg-primary border border-border-input rounded-lg text-sm text-text-primary outline-none focus:border-accent transition-colors duration-200 appearance-none cursor-pointer"
+            className="h-8 px-3 bg-bg-primary border border-border-default rounded-lg text-sm text-text-primary outline-none focus:border-accent transition-colors duration-200 appearance-none cursor-pointer"
           >
             <option value="ALL">All Platforms</option>
             {platforms.map((p) => (
@@ -215,12 +292,12 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border-default">
+            <tr className="border-b border-border-default bg-bg-primary/50">
               {columns.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
-                  className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3 cursor-pointer select-none hover:text-text-secondary transition-colors duration-200"
+                  className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3 cursor-pointer select-none hover:text-text-secondary transition-colors duration-150"
                 >
                   {col.label}
                   {sortIndicator(col.key)}
@@ -229,16 +306,16 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
             </tr>
           </thead>
           <tbody>
-            {isPowerAutomate ? (
-              solutionGroups.map((group) => {
-                const isOpen = !collapsed.has(group.solutionId);
+            {perfGroups ? (
+              perfGroups.map((group) => {
+                const isOpen = !collapsed.has(group.groupId);
                 return (
-                  <SolutionPerfRows
-                    key={group.solutionId}
+                  <GroupedPerfSection
+                    key={group.groupId}
                     group={group}
                     isOpen={isOpen}
                     colCount={colCount}
-                    onToggle={() => toggleGroup(group.solutionId)}
+                    onToggle={() => toggleGroup(group.groupId)}
                   />
                 );
               })
@@ -269,47 +346,53 @@ export function JobPerformanceTable({ data, initialPlatform }: Props) {
   );
 }
 
-function SolutionPerfRows({
+function GroupedPerfSection({
   group,
   isOpen,
   colCount,
   onToggle,
 }: {
-  group: SolutionPerfGroup;
+  group: PerfJobGroup;
   isOpen: boolean;
   colCount: number;
   onToggle: () => void;
 }) {
-  const displayName = group.solutionName.replace(/^ADO\d+[\w/]*-\s*/, "");
+  const displayName =
+    group.kind === "solution"
+      ? group.groupTitle.replace(/^ADO\d+[\w/]*-\s*/, "")
+      : group.groupTitle;
+  const GroupIcon = group.kind === "solution" ? FolderOpen : Tag;
+  const jobCountLabel = group.kind === "solution" ? "flows" : "jobs";
+
   return (
     <>
       <tr
         onClick={onToggle}
-        className="border-b border-border-default bg-bg-primary/50 cursor-pointer hover:bg-surface-hover transition-colors duration-200"
+        className="border-b border-border-default bg-bg-primary/40 cursor-pointer hover:bg-bg-primary/70 transition-colors duration-150"
       >
         <td className="px-4 py-2.5">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             {isOpen ? (
               <ChevronDown size={14} className="text-accent shrink-0" />
             ) : (
               <ChevronRight size={14} className="text-text-muted shrink-0" />
             )}
-            <FolderOpen size={14} className="text-accent shrink-0" />
-            <span className="text-sm font-semibold text-text-primary">
-              {displayName}
-            </span>
-            <span className="text-[10px] font-mono text-text-muted">
-              {group.solutionId}
-            </span>
+            <GroupIcon size={14} className="text-accent shrink-0" />
+            <JobNameText className="font-semibold min-w-0 shrink">{displayName}</JobNameText>
+            {group.groupSubtitle && (
+              <span className="text-[10px] font-mono text-text-muted shrink-0">
+                {group.groupSubtitle}
+              </span>
+            )}
           </div>
         </td>
-        <td className="px-4 py-2.5 text-sm text-text-secondary tabular-nums font-semibold">
+        <td className="px-4 py-2.5 text-sm text-text-secondary font-mono tabular-nums font-semibold">
           {group.totalRuns}
         </td>
         <td className="px-4 py-2.5">
           {group.totalRuns > 0 ? (
             <span
-              className="inline-block px-2 py-0.5 rounded text-xs font-semibold tabular-nums"
+              className="inline-block px-2 py-0.5 rounded text-xs font-semibold font-mono tabular-nums"
               style={{
                 backgroundColor: rateBackground(group.successRatePct),
                 color: rateColor(group.successRatePct),
@@ -320,7 +403,7 @@ function SolutionPerfRows({
           ) : (
             <span
               className="inline-block px-2 py-0.5 rounded text-xs font-semibold text-text-muted"
-              style={{ backgroundColor: "rgba(158,168,181,0.1)" }}
+              style={{ backgroundColor: "rgba(161,161,170,0.1)" }}
             >
               —
             </span>
@@ -328,13 +411,13 @@ function SolutionPerfRows({
         </td>
         <td className="px-4 py-2.5" />
         <td className="px-4 py-2.5" />
-        <td className="px-4 py-2.5 text-sm tabular-nums font-semibold">
+        <td className="px-4 py-2.5 text-sm font-mono tabular-nums font-semibold">
           <span className={group.failedRuns > 0 ? "text-danger" : "text-text-muted"}>
             {group.failedRuns}
           </span>
         </td>
-        <td className="px-4 py-2.5 text-xs text-text-muted tabular-nums">
-          {group.jobs.length} flows
+        <td className="px-4 py-2.5 text-xs text-text-muted font-mono tabular-nums">
+          {group.jobs.length} {jobCountLabel}
         </td>
       </tr>
       {isOpen &&
@@ -362,39 +445,42 @@ function PerfRow({
   const noRuns = Number(row.totalRuns) === 0;
   return (
     <tr
-      className={`border-b border-border-default transition-colors duration-200 hover:bg-surface-hover ${
+      className={`border-b border-border-default transition-colors duration-150 hover:bg-bg-primary/50 ${
         noRuns ? "opacity-50" : ""
       }`}
     >
       {showPlatform ? (
         <>
-          <td className="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">
-            {getPlatformDisplayName(row.platform)}
+          <td className="px-4 py-3 whitespace-nowrap">
+            <PlatformBadge platform={row.platform} />
           </td>
-          <td className="px-4 py-3 text-sm text-text-primary font-medium whitespace-nowrap">
-            {row.jobName}
+          <td className="px-4 py-3 whitespace-nowrap max-w-[280px]">
+            <JobNameText title={row.jobName}>{row.jobName}</JobNameText>
           </td>
         </>
       ) : (
-        <td className="px-4 py-3 text-sm text-text-primary font-medium whitespace-nowrap">
-          {indent && <span className="inline-block w-4" />}
-          {row.jobName}
+        <td
+          className={`py-3 pr-4 whitespace-nowrap max-w-[280px] ${
+            indent ? "pl-6 border-l-2 border-accent/25 ml-3" : "pl-4"
+          }`}
+        >
+          <JobNameText title={row.jobName}>{row.jobName}</JobNameText>
         </td>
       )}
-      <td className="px-4 py-3 text-sm text-text-secondary tabular-nums">
+      <td className="px-4 py-3 text-sm text-text-secondary font-mono tabular-nums">
         {noRuns ? "—" : Number(row.totalRuns)}
       </td>
       <td className="px-4 py-3">
         {noRuns ? (
           <span
             className="inline-block px-2 py-0.5 rounded text-xs font-semibold text-text-muted"
-            style={{ backgroundColor: "rgba(158,168,181,0.1)" }}
+            style={{ backgroundColor: "rgba(161,161,170,0.1)" }}
           >
             Inactive
           </span>
         ) : (
           <span
-            className="inline-block px-2 py-0.5 rounded text-xs font-semibold tabular-nums"
+            className="inline-block px-2 py-0.5 rounded text-xs font-semibold font-mono tabular-nums"
             style={{
               backgroundColor: rateBackground(Number(row.successRatePct)),
               color: rateColor(Number(row.successRatePct)),
@@ -404,13 +490,13 @@ function PerfRow({
           </span>
         )}
       </td>
-      <td className="px-4 py-3 text-sm text-text-secondary tabular-nums">
+      <td className="px-4 py-3 text-sm text-text-secondary font-mono tabular-nums">
         {noRuns ? "—" : formatDuration(Number(row.avgDurationSeconds))}
       </td>
-      <td className="px-4 py-3 text-sm text-text-secondary tabular-nums">
+      <td className="px-4 py-3 text-sm text-text-secondary font-mono tabular-nums">
         {noRuns ? "—" : formatDuration(Number(row.maxDurationSeconds))}
       </td>
-      <td className="px-4 py-3 text-sm tabular-nums">
+      <td className="px-4 py-3 text-sm font-mono tabular-nums">
         {noRuns ? (
           <span className="text-text-muted">—</span>
         ) : (

@@ -6,6 +6,13 @@ import type {
   CyclePerformance,
   JobPerformanceRecord,
   JobRegistryRecord,
+  MonitoringEvent,
+  CatalogEntry,
+  CatalogEntity,
+  EntityLineageRecord,
+  LineageEdge,
+  CatalogDiagram,
+  CatalogDocument,
 } from "@/types/pipeline";
 
 export const healthSummary: PipelineHealthSummary = {
@@ -293,7 +300,7 @@ function generateCycleData(): CyclePerformance[] {
 
 export const cyclePerformance: CyclePerformance[] = generateCycleData();
 
-export const jobRegistry: JobRegistryRecord[] = [
+const jobRegistryRaw: JobRegistryRecord[] = [
   { platform: "AIRBYTE", jobName: "Bitly ADL -> Snowflake", priority: "medium", description: "Bitly ADL data sync to Snowflake", businessFunction: "Data Integration", slaHours: 6, enabled: false },
   { platform: "AIRBYTE", jobName: "CIRF & PIR - ADL -> Snowflake", priority: "high", description: "CIRF & PIR report data sync to Snowflake", businessFunction: "Finance", slaHours: 4, enabled: false },
   { platform: "AIRBYTE", jobName: "Cura-Customer-Integration-Prod -> Snowflake", priority: "critical", description: "Cura customer integration — production sync", businessFunction: "Customer Integration", slaHours: 4, enabled: false },
@@ -564,6 +571,160 @@ export const jobRegistry: JobRegistryRecord[] = [
   { platform: "SNOWFLAKE", jobName: "Work center/resource table for manufacturing", priority: "high", description: "Work center/resource table for manufacturing", businessFunction: "Manufacturing", slaHours: 3, enabled: false },
 ];
 
+/** Seed: mirror PLATFORM_METADATA.tag using businessFunction when unset (Snowflake only). */
+export const jobRegistry: JobRegistryRecord[] = jobRegistryRaw.map((job) => {
+  if (job.platform !== "SNOWFLAKE" || job.tag != null) return job;
+  return { ...job, tag: job.businessFunction };
+});
+
+function generateMonitoringEvents(): MonitoringEvent[] {
+  const events: MonitoringEvent[] = [
+    {
+      platform: "DATABRICKS",
+      jobName: "BDSA Daily Ingestion",
+      eventType: "JOB_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(0.5),
+      endTime: hoursAgo(0.3),
+      durationSeconds: 720,
+      platformMetadata: { job_id: "84601", cluster_id: "0414-cluster-abc", run_page_url: "https://adb-12345.azuredatabricks.net/#/jobs/84601" },
+    },
+    {
+      platform: "AIRBYTE",
+      jobName: "Deputy_timesheet_incremental -> Snowflake",
+      eventType: "SYNC",
+      status: "SUCCESS",
+      startTime: hoursAgo(1),
+      endTime: hoursAgo(0.8),
+      durationSeconds: 432,
+      platformMetadata: { connection_id: "conn-abc123", bytes_synced: 14502400, records_synced: 38420 },
+    },
+    {
+      platform: "POWER_AUTOMATE",
+      jobName: "Bitly API Ingestion Orchestrator",
+      eventType: "FLOW_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(1.5),
+      endTime: hoursAgo(1.2),
+      durationSeconds: 1080,
+      platformMetadata: { solution_id: "ADO97489", solution_name: "ADO97489- Bitly API Ingestion", flow_type: "scheduled", category: "orchestration" },
+    },
+    {
+      platform: "SNOWFLAKE",
+      jobName: "ICEBERG Table Refresh",
+      eventType: "TASK_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(2),
+      endTime: hoursAgo(1.9),
+      durationSeconds: 360,
+      platformMetadata: { warehouse: "PRD_WH", query_id: "01b3e5f6-0001-a6b4", rows_produced: 150000 },
+    },
+    {
+      platform: "DATABRICKS",
+      jobName: "Price Alerting",
+      eventType: "JOB_RUN",
+      status: "FAILED",
+      startTime: hoursAgo(3),
+      endTime: hoursAgo(2.9),
+      durationSeconds: 67,
+      platformMetadata: { job_id: "84580", cluster_id: "0414-cluster-def", error_code: "DRIVER_OOM" },
+    },
+    {
+      platform: "AIRBYTE",
+      jobName: "Springbig Prod -> Snowflake",
+      eventType: "SYNC",
+      status: "SUCCESS",
+      startTime: hoursAgo(4),
+      endTime: hoursAgo(3.6),
+      durationSeconds: 1440,
+      platformMetadata: { connection_id: "conn-spb001", bytes_synced: 52428800, records_synced: 124500 },
+    },
+    {
+      platform: "POWER_AUTOMATE",
+      jobName: "Costing File Ingestion Orchestrator",
+      eventType: "FLOW_RUN",
+      status: "FAILED",
+      startTime: hoursAgo(5),
+      endTime: hoursAgo(4.8),
+      durationSeconds: 720,
+      platformMetadata: { solution_id: "ADO81979", solution_name: "ADO81979- Costing Files from Sharepoint", flow_type: "automated", error_action: "Copy_File_To_Blob" },
+    },
+    {
+      platform: "SNOWFLAKE",
+      jobName: "Florida Dept of Health - MMTC",
+      eventType: "TASK_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(6),
+      endTime: hoursAgo(5.8),
+      durationSeconds: 480,
+      platformMetadata: { warehouse: "PRD_WH", query_id: "01b3e5f7-0002-c7e8", rows_produced: 2450 },
+    },
+    {
+      platform: "DBT_CLOUD",
+      jobName: "dbt PROD Nightly Run",
+      eventType: "JOB_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(8),
+      endTime: hoursAgo(7.5),
+      durationSeconds: 1800,
+      platformMetadata: { job_id: 12345, run_id: 67890, environment: "production", git_sha: "a1b2c3d" },
+    },
+    {
+      platform: "DATABRICKS",
+      jobName: "Kognitiv Daily Data Ingestion",
+      eventType: "JOB_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(10),
+      endTime: hoursAgo(9.7),
+      durationSeconds: 1080,
+      platformMetadata: { job_id: "84555", cluster_id: "0414-cluster-ghi", notebook_path: "/ETL/kognitiv/daily_ingest" },
+    },
+    {
+      platform: "AIRBYTE",
+      jobName: "leaftrade_orders -> Snowflake",
+      eventType: "SYNC",
+      status: "CANCELLED",
+      startTime: hoursAgo(12),
+      endTime: hoursAgo(11.9),
+      durationSeconds: 15,
+      platformMetadata: { connection_id: "conn-lt-orders", cancel_reason: "manual_cancellation" },
+    },
+    {
+      platform: "POWER_AUTOMATE",
+      jobName: "Flower Quality Scorecard",
+      eventType: "FLOW_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(14),
+      endTime: hoursAgo(13.5),
+      durationSeconds: 1800,
+      platformMetadata: { solution_id: "ADO82674", solution_name: "ADO82674- Flower Quality Scorecard", flow_type: "automated", category: "reporting" },
+    },
+    {
+      platform: "SNOWFLAKE",
+      jobName: "Core product master table",
+      eventType: "TASK_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(18),
+      endTime: hoursAgo(17.8),
+      durationSeconds: 540,
+      platformMetadata: { warehouse: "PRD_WH", query_id: "01b3e5f8-0003-d9fa", rows_produced: 87500 },
+    },
+    {
+      platform: "DATABRICKS",
+      jobName: "Windy City Stores LL Daily Ingestion",
+      eventType: "JOB_RUN",
+      status: "SUCCESS",
+      startTime: hoursAgo(24),
+      endTime: hoursAgo(23.6),
+      durationSeconds: 1440,
+      platformMetadata: { job_id: "84510", cluster_id: "0414-cluster-jkl", notebook_path: "/ETL/windy_city/daily" },
+    },
+  ];
+  return events;
+}
+
+export const monitoringEvents: MonitoringEvent[] = generateMonitoringEvents();
+
 function seededRandom(seed: number): () => number {
   let s = seed;
   return () => {
@@ -577,7 +738,7 @@ function generateJobPerformance(): JobPerformanceRecord[] {
     const rng = seededRandom(idx * 31 + job.jobName.length * 7);
 
     if (!job.enabled) {
-      return {
+      const idle: JobPerformanceRecord = {
         platform: job.platform,
         jobName: job.jobName,
         totalRuns: 0,
@@ -589,6 +750,12 @@ function generateJobPerformance(): JobPerformanceRecord[] {
         lastRunTime: "",
         firstSeen: "",
       };
+      if (job.solutionId != null) {
+        idle.solutionId = job.solutionId;
+        idle.solutionName = job.solutionName;
+      }
+      if (job.tag != null) idle.tag = job.tag;
+      return idle;
     }
 
     const baseCadence = job.slaHours <= 2 ? 672 : job.slaHours <= 4 ? 336 : 60;
@@ -601,7 +768,7 @@ function generateJobPerformance(): JobPerformanceRecord[] {
     const maxDur = avgDur * (1.5 + rng());
     const lastRunHoursAgo = Math.floor(rng() * 12);
 
-    return {
+    const row: JobPerformanceRecord = {
       platform: job.platform,
       jobName: job.jobName,
       totalRuns,
@@ -613,7 +780,306 @@ function generateJobPerformance(): JobPerformanceRecord[] {
       lastRunTime: hoursAgo(lastRunHoursAgo),
       firstSeen: "2026-02-03T00:00:00Z",
     };
+    if (job.solutionId != null) {
+      row.solutionId = job.solutionId;
+      row.solutionName = job.solutionName;
+    }
+    if (job.tag != null) row.tag = job.tag;
+    return row;
   });
 }
 
 export const jobPerformance: JobPerformanceRecord[] = generateJobPerformance();
+
+// ---------------------------------------------------------------------------
+// Catalog Portal seed data
+// ---------------------------------------------------------------------------
+
+export const catalogEntries: CatalogEntry[] = [
+  {
+    catalogId: "c001",
+    platform: "AIRBYTE",
+    pipelineName: "Salesforce Accounts Sync",
+    pipelineDescription: "Full refresh of Salesforce Account, Contact, and Opportunity objects into the raw layer. Used by downstream CRM analytics models.",
+    businessSegment: "Customer Experience",
+    dataProvider: "Salesforce",
+    dataDirection: "INGESTION",
+    connectionType: "API",
+    dataEnvironment: "PROD",
+    ownerName: "Maria Lopez",
+    ownerEmail: "maria.lopez@company.com",
+    engineerName: "Rafael Gomez",
+    engineerEmail: "rafael.gomez@company.com",
+    isDocumented: true,
+    tags: ["CRM", "Salesforce", "Accounts"],
+    dataClassification: "CONFIDENTIAL",
+    refreshFrequency: "DAILY",
+    catalogStatus: "ACTIVE",
+    deprecationDate: null,
+    lastCatalogUpdate: hoursAgo(48),
+    updatedBy: "rafael.gomez",
+    createdAt: "2025-06-15T10:00:00Z",
+    createdBy: "rafael.gomez",
+    priority: "HIGH",
+    slaHours: 4,
+    enabled: true,
+    businessFunction: "Sales Analytics",
+  },
+  {
+    catalogId: "c002",
+    platform: "DATABRICKS",
+    pipelineName: "Finance ETL Bronze-to-Silver",
+    pipelineDescription: "Delta Live Tables pipeline that cleans and conforms raw finance data (GL journals, AP/AR) into silver-layer tables for reporting.",
+    businessSegment: "Finance",
+    dataProvider: "Internal",
+    dataDirection: "TRANSFORMATION",
+    connectionType: "JDBC",
+    dataEnvironment: "PROD",
+    ownerName: "James Chen",
+    ownerEmail: "james.chen@company.com",
+    engineerName: "Sarah Kim",
+    engineerEmail: "sarah.kim@company.com",
+    isDocumented: true,
+    tags: ["Finance", "DLT", "Silver"],
+    dataClassification: "RESTRICTED",
+    refreshFrequency: "DAILY",
+    catalogStatus: "ACTIVE",
+    deprecationDate: null,
+    lastCatalogUpdate: hoursAgo(120),
+    updatedBy: "sarah.kim",
+    createdAt: "2025-04-20T14:00:00Z",
+    createdBy: "sarah.kim",
+    priority: "CRITICAL",
+    slaHours: 2,
+    enabled: true,
+    businessFunction: "Financial Reporting",
+  },
+  {
+    catalogId: "c003",
+    platform: "SNOWFLAKE",
+    pipelineName: "EDW Nightly Merge",
+    pipelineDescription: "Snowflake task that merges staged incremental data into the enterprise data warehouse fact and dimension tables.",
+    businessSegment: "Enterprise Data",
+    dataProvider: "Internal",
+    dataDirection: "TRANSFORMATION",
+    connectionType: "JDBC",
+    dataEnvironment: "PROD",
+    ownerName: "Rafael Gomez",
+    ownerEmail: "rafael.gomez@company.com",
+    engineerName: "Rafael Gomez",
+    engineerEmail: "rafael.gomez@company.com",
+    isDocumented: false,
+    tags: ["EDW", "Merge", "Nightly"],
+    dataClassification: "INTERNAL",
+    refreshFrequency: "DAILY",
+    catalogStatus: "ACTIVE",
+    deprecationDate: null,
+    lastCatalogUpdate: hoursAgo(2200),
+    updatedBy: "rafael.gomez",
+    createdAt: "2025-01-10T09:00:00Z",
+    createdBy: "rafael.gomez",
+    priority: "HIGH",
+    slaHours: 3,
+    enabled: true,
+    businessFunction: "Enterprise Analytics",
+  },
+  {
+    catalogId: "c004",
+    platform: "POWER_AUTOMATE",
+    pipelineName: "HR Onboarding Notification",
+    pipelineDescription: "Power Automate flow triggered when a new hire record appears in the HR SharePoint list. Sends Teams notifications and creates onboarding tickets.",
+    businessSegment: "Human Resources",
+    dataProvider: "SharePoint",
+    dataDirection: "EGRESS",
+    connectionType: "API",
+    dataEnvironment: "PROD",
+    ownerName: "Lisa Park",
+    ownerEmail: "lisa.park@company.com",
+    engineerName: "Tom Wilson",
+    engineerEmail: "tom.wilson@company.com",
+    isDocumented: true,
+    tags: ["HR", "Notifications", "Onboarding"],
+    dataClassification: "CONFIDENTIAL",
+    refreshFrequency: "ON_DEMAND",
+    catalogStatus: "ACTIVE",
+    deprecationDate: null,
+    lastCatalogUpdate: hoursAgo(72),
+    updatedBy: "tom.wilson",
+    createdAt: "2025-08-01T11:00:00Z",
+    createdBy: "tom.wilson",
+    priority: "MEDIUM",
+    slaHours: 8,
+    enabled: true,
+    businessFunction: "HR Operations",
+  },
+  {
+    catalogId: "c005",
+    platform: "AIRBYTE",
+    pipelineName: "Stripe Payments Sync",
+    pipelineDescription: "Incremental sync of Stripe payment intents, charges, refunds, and subscriptions into the raw layer.",
+    businessSegment: "Finance",
+    dataProvider: "Stripe",
+    dataDirection: "INGESTION",
+    connectionType: "API",
+    dataEnvironment: "PROD",
+    ownerName: "James Chen",
+    ownerEmail: "james.chen@company.com",
+    engineerName: "Rafael Gomez",
+    engineerEmail: "rafael.gomez@company.com",
+    isDocumented: true,
+    tags: ["Payments", "Stripe", "Billing"],
+    dataClassification: "RESTRICTED",
+    refreshFrequency: "HOURLY",
+    catalogStatus: "ACTIVE",
+    deprecationDate: null,
+    lastCatalogUpdate: hoursAgo(24),
+    updatedBy: "rafael.gomez",
+    createdAt: "2025-07-10T08:00:00Z",
+    createdBy: "rafael.gomez",
+    priority: "CRITICAL",
+    slaHours: 1,
+    enabled: true,
+    businessFunction: "Revenue Analytics",
+  },
+  {
+    catalogId: "c006",
+    platform: "DATABRICKS",
+    pipelineName: "ML Feature Store Refresh",
+    pipelineDescription: "Databricks job that computes and publishes ML feature tables from silver-layer data for the churn prediction model.",
+    businessSegment: "Data Science",
+    dataProvider: "Internal",
+    dataDirection: "TRANSFORMATION",
+    connectionType: "JDBC",
+    dataEnvironment: "PROD",
+    ownerName: "Priya Patel",
+    ownerEmail: "priya.patel@company.com",
+    engineerName: "Priya Patel",
+    engineerEmail: "priya.patel@company.com",
+    isDocumented: false,
+    tags: ["ML", "Features", "Churn"],
+    dataClassification: "INTERNAL",
+    refreshFrequency: "DAILY",
+    catalogStatus: "ACTIVE",
+    deprecationDate: null,
+    lastCatalogUpdate: null,
+    updatedBy: null,
+    createdAt: "2025-09-20T16:00:00Z",
+    createdBy: "priya.patel",
+    priority: "MEDIUM",
+    slaHours: 6,
+    enabled: true,
+    businessFunction: "Data Science",
+  },
+  {
+    catalogId: "c007",
+    platform: "SNOWFLAKE",
+    pipelineName: "Legacy Inventory Export",
+    pipelineDescription: "Exports inventory snapshots to an SFTP server consumed by the legacy ERP system. Scheduled for deprecation once the new ERP integration is live.",
+    businessSegment: "Supply Chain",
+    dataProvider: "Internal",
+    dataDirection: "EGRESS",
+    connectionType: "SFTP",
+    dataEnvironment: "PROD",
+    ownerName: "David Kim",
+    ownerEmail: "david.kim@company.com",
+    engineerName: "Rafael Gomez",
+    engineerEmail: "rafael.gomez@company.com",
+    isDocumented: true,
+    tags: ["Legacy", "Inventory", "ERP"],
+    dataClassification: "INTERNAL",
+    refreshFrequency: "DAILY",
+    catalogStatus: "DEPRECATED",
+    deprecationDate: "2026-06-30",
+    lastCatalogUpdate: hoursAgo(720),
+    updatedBy: "rafael.gomez",
+    createdAt: "2024-03-15T10:00:00Z",
+    createdBy: "rafael.gomez",
+    priority: "LOW",
+    slaHours: 12,
+    enabled: true,
+    businessFunction: "Supply Chain",
+  },
+  {
+    catalogId: "c008",
+    platform: "AIRBYTE",
+    pipelineName: "Jira Issues Sync",
+    pipelineDescription: "Syncs Jira project data including issues, sprints, and worklogs for engineering velocity dashboards.",
+    businessSegment: "Engineering",
+    dataProvider: "Atlassian",
+    dataDirection: "INGESTION",
+    connectionType: "API",
+    dataEnvironment: "PROD",
+    ownerName: "Alex Rivera",
+    ownerEmail: "alex.rivera@company.com",
+    engineerName: "Alex Rivera",
+    engineerEmail: "alex.rivera@company.com",
+    isDocumented: false,
+    tags: ["Jira", "Engineering", "Velocity"],
+    dataClassification: "PUBLIC",
+    refreshFrequency: "DAILY",
+    catalogStatus: "PLANNED",
+    deprecationDate: null,
+    lastCatalogUpdate: null,
+    updatedBy: null,
+    createdAt: "2026-04-10T09:00:00Z",
+    createdBy: "alex.rivera",
+    priority: null,
+    slaHours: null,
+    enabled: null,
+    businessFunction: null,
+  },
+];
+
+export const catalogEntities: CatalogEntity[] = [
+  { entityId: "e001", catalogId: "c001", entityName: "Account", entityDescription: "Salesforce → PRD_EDW_RAW", databaseDetails: "PRD_EDW_RAW.SALESFORCE.ACCOUNTS", uri: "https://login.salesforce.com" },
+  { entityId: "e002", catalogId: "c001", entityName: "Contact", entityDescription: "Salesforce → PRD_EDW_RAW", databaseDetails: "PRD_EDW_RAW.SALESFORCE.CONTACTS", uri: "https://login.salesforce.com" },
+  { entityId: "e003", catalogId: "c002", entityName: "GL_JOURNALS_SILVER", entityDescription: "Bronze → Silver", databaseDetails: "PRD_EDW_STG.FINANCE.GL_JOURNALS_SILVER", uri: null },
+  { entityId: "e004", catalogId: "c003", entityName: "FACT_ORDERS", entityDescription: "Staged → EDW Fact", databaseDetails: "PRD_EDW.PUBLIC.FACT_ORDERS", uri: null },
+  { entityId: "e005", catalogId: "c004", entityName: "NewHireList", entityDescription: "SharePoint HR list trigger", databaseDetails: null, uri: "https://company.sharepoint.com/sites/HR" },
+  { entityId: "e006", catalogId: "c005", entityName: "payment_intent", entityDescription: "Stripe payment intents", databaseDetails: "PRD_EDW_RAW.STRIPE.PAYMENT_INTENT", uri: "https://api.stripe.com/v1/payment_intents" },
+  { entityId: "e007", catalogId: "c005", entityName: "charge", entityDescription: "Stripe charges", databaseDetails: "PRD_EDW_RAW.STRIPE.CHARGES", uri: "https://api.stripe.com/v1/charges" },
+  { entityId: "e008", catalogId: "c006", entityName: "CUSTOMER_FEATURES", entityDescription: "Silver → ML Feature Store", databaseDetails: "PRD_ML.FEATURES.CUSTOMER_FEATURES", uri: null },
+  { entityId: "e009", catalogId: "c007", entityName: "DIM_INVENTORY", entityDescription: "EDW → SFTP export", databaseDetails: "PRD_EDW.PUBLIC.DIM_INVENTORY", uri: "sftp://legacy-erp.company.com/inventory" },
+  { entityId: "e010", catalogId: "c008", entityName: "issues", entityDescription: "Jira issues stream", databaseDetails: "PRD_EDW_RAW.JIRA.ISSUES", uri: "https://company.atlassian.net" },
+];
+
+export const catalogLineage: LineageEdge[] = [
+  { lineageId: "l001", sourceCatalogId: "c001", targetCatalogId: "c003", relationshipType: "FEEDS", description: "Salesforce accounts feed the EDW merge" },
+  { lineageId: "l002", sourceCatalogId: "c005", targetCatalogId: "c002", relationshipType: "FEEDS", description: "Stripe payments feed finance ETL" },
+  { lineageId: "l003", sourceCatalogId: "c002", targetCatalogId: "c003", relationshipType: "FEEDS", description: "Finance silver feeds EDW merge" },
+  { lineageId: "l004", sourceCatalogId: "c003", targetCatalogId: "c007", relationshipType: "FEEDS", description: "EDW provides inventory for legacy export" },
+  { lineageId: "l005", sourceCatalogId: "c003", targetCatalogId: "c006", relationshipType: "FEEDS", description: "EDW data used to compute ML features" },
+  { lineageId: "l006", sourceCatalogId: "c004", targetCatalogId: "c003", relationshipType: "TRIGGERS", description: "HR flow triggers downstream refresh" },
+];
+
+export const catalogDiagrams: CatalogDiagram[] = [
+  { diagramId: "d001", catalogId: "c001", title: "Salesforce Integration Architecture", url: "https://lucid.app/documents/salesforce-arch", diagramType: "ARCHITECTURE", thumbnailUrl: null, description: "End-to-end Salesforce data flow" },
+  { diagramId: "d002", catalogId: "c002", title: "Finance DLT Pipeline DAG", url: "https://lucid.app/documents/finance-dlt", diagramType: "DATA_FLOW", thumbnailUrl: null, description: "DLT pipeline graph" },
+  { diagramId: "d003", catalogId: "c003", title: "EDW Star Schema ERD", url: "https://company.sharepoint.com/sites/Data/edw-erd.vsdx", diagramType: "ERD", thumbnailUrl: null, description: "Fact and dimension table relationships" },
+  { diagramId: "d004", catalogId: "c005", title: "Stripe Payment Flow", url: "https://lucid.app/documents/stripe-flow", diagramType: "SEQUENCE", thumbnailUrl: null, description: "Payment processing sequence" },
+];
+
+export const catalogDocuments: CatalogDocument[] = [
+  { documentId: "doc001", catalogId: "c001", title: "Salesforce Connector Runbook", url: "https://company.sharepoint.com/sites/Data/runbooks/salesforce", docType: "RUNBOOK", description: "Troubleshooting and incident response for Salesforce sync" },
+  { documentId: "doc002", catalogId: "c002", title: "Finance Data Dictionary", url: "https://company.sharepoint.com/sites/Finance/data-dictionary", docType: "SHAREPOINT_FOLDER", description: "Column definitions and business rules for finance tables" },
+  { documentId: "doc003", catalogId: "c003", title: "EDW Design Confluence Page", url: "https://company.atlassian.net/wiki/spaces/DATA/edw-design", docType: "CONFLUENCE", description: "Architecture decisions and schema evolution history" },
+  { documentId: "doc004", catalogId: "c004", title: "HR Automation SOP", url: "https://company.sharepoint.com/sites/HR/sop/onboarding-flow", docType: "SOP", description: "Standard operating procedure for HR notification flow" },
+  { documentId: "doc005", catalogId: "c005", title: "Stripe Integration Wiki", url: "https://company.sharepoint.com/sites/Data/wiki/stripe", docType: "WIKI", description: "API keys, rate limits, and configuration notes" },
+];
+
+export const entityLineage: EntityLineageRecord[] = [
+  // LeafTrade REST API pipelines
+  { catalogId: "c001", platform: "AIRBYTE", pipelineName: "leaftrade_dispensaries", dataProvider: "LeafTrade REST API", entityId: "el001", entityName: "dispensaries", databaseDetails: "REST API|dispensaries|AIRBYTE_DB|AIRBYTE_DB|LEAFTRADE|DISPENSARIES", sourceType: "REST API", stream: "dispensaries", destDb: "AIRBYTE_DB", database: "AIRBYTE_DB", schema: "LEAFTRADE", tableName: "DISPENSARIES" },
+  { catalogId: "c001", platform: "AIRBYTE", pipelineName: "leaftrade_products", dataProvider: "LeafTrade REST API", entityId: "el002", entityName: "products", databaseDetails: "REST API|products|AIRBYTE_DB|AIRBYTE_DB|LEAFTRADE|PRODUCTS", sourceType: "REST API", stream: "products", destDb: "AIRBYTE_DB", database: "AIRBYTE_DB", schema: "LEAFTRADE", tableName: "PRODUCTS" },
+  { catalogId: "c001", platform: "AIRBYTE", pipelineName: "leaftrade_orders", dataProvider: "LeafTrade REST API", entityId: "el003", entityName: "orders", databaseDetails: "REST API|orders|AIRBYTE_DB|AIRBYTE_DB|LEAFTRADE|ORDERS", sourceType: "REST API", stream: "orders", destDb: "AIRBYTE_DB", database: "AIRBYTE_DB", schema: "LEAFTRADE", tableName: "ORDERS" },
+  { catalogId: "c001", platform: "AIRBYTE", pipelineName: "leaftrade_stock", dataProvider: "LeafTrade REST API", entityId: "el004", entityName: "stock", databaseDetails: "REST API|stock|AIRBYTE_DB|AIRBYTE_DB|LEAFTRADE|STOCK", sourceType: "REST API", stream: "stock", destDb: "AIRBYTE_DB", database: "AIRBYTE_DB", schema: "LEAFTRADE", tableName: "STOCK" },
+  // Deputy REST API pipelines
+  { catalogId: "c002", platform: "AIRBYTE", pipelineName: "Deputy_contact_incremental", dataProvider: "Deputy REST API", entityId: "el005", entityName: "contact_incremental", databaseDetails: "REST API|contact_incremental|AIRBYTE_DB|AIRBYTE_DB|DEPUTY|CONTACT_INCREMENTAL", sourceType: "REST API", stream: "contact_incremental", destDb: "AIRBYTE_DB", database: "AIRBYTE_DB", schema: "DEPUTY", tableName: "CONTACT_INCREMENTAL" },
+  { catalogId: "c002", platform: "AIRBYTE", pipelineName: "Deputy_timesheet_incremental", dataProvider: "Deputy REST API", entityId: "el006", entityName: "timesheet_incremental", databaseDetails: "REST API|timesheet_incremental|AIRBYTE_DB|AIRBYTE_DB|DEPUTY|TIMESHEET_INCREMENTAL", sourceType: "REST API", stream: "timesheet_incremental", destDb: "AIRBYTE_DB", database: "AIRBYTE_DB", schema: "DEPUTY", tableName: "TIMESHEET_INCREMENTAL" },
+  { catalogId: "c002", platform: "AIRBYTE", pipelineName: "Deputy_employee_incremental", dataProvider: "Deputy REST API", entityId: "el007", entityName: "employee_incremental", databaseDetails: "REST API|employee_incremental|AIRBYTE_DB|AIRBYTE_DB|DEPUTY|EMPLOYEE_INCREMENTAL", sourceType: "REST API", stream: "employee_incremental", destDb: "AIRBYTE_DB", database: "AIRBYTE_DB", schema: "DEPUTY", tableName: "EMPLOYEE_INCREMENTAL" },
+  // Snowflake transformation pipelines
+  { catalogId: "c003", platform: "SNOWFLAKE", pipelineName: "EDW Customer Merge", dataProvider: "Snowflake SQL", entityId: "el008", entityName: "FACT_CUSTOMERS", databaseDetails: "SQL|customer_merge|PRD_EDW|PRD_EDW|PUBLIC|FACT_CUSTOMERS", sourceType: "SQL", stream: "customer_merge", destDb: "PRD_EDW", database: "PRD_EDW", schema: "PUBLIC", tableName: "FACT_CUSTOMERS" },
+  { catalogId: "c003", platform: "SNOWFLAKE", pipelineName: "EDW Customer Merge", dataProvider: "Snowflake SQL", entityId: "el009", entityName: "FACT_ORDERS", databaseDetails: "SQL|order_merge|PRD_EDW|PRD_EDW|PUBLIC|FACT_ORDERS", sourceType: "SQL", stream: "order_merge", destDb: "PRD_EDW", database: "PRD_EDW", schema: "PUBLIC", tableName: "FACT_ORDERS" },
+  // Databricks pipeline
+  { catalogId: "c006", platform: "DATABRICKS", pipelineName: "Customer ML Feature Pipeline", dataProvider: "Databricks Delta", entityId: "el010", entityName: "CUSTOMER_FEATURES", databaseDetails: "Delta|customer_features|PRD_ML|PRD_ML|FEATURES|CUSTOMER_FEATURES", sourceType: "Delta", stream: "customer_features", destDb: "PRD_ML", database: "PRD_ML", schema: "FEATURES", tableName: "CUSTOMER_FEATURES" },
+];

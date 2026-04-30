@@ -63,8 +63,8 @@ export function PipelineHealthTrend({ data }: Props) {
   });
 
   return (
-    <div className="bg-bg-surface border border-border-default rounded-xl p-4">
-      <h3 className="text-sm font-semibold text-text-primary mb-4">
+    <div className="bg-bg-surface border border-border-default rounded-[14px] p-4 shadow-[var(--shadow-card)]">
+      <h3 className="text-sm font-semibold tracking-[-0.01em] text-text-primary mb-4">
         Pipeline Health Trend
         <span className="text-text-muted font-normal ml-2 text-xs">7 Days</span>
       </h3>
@@ -72,13 +72,13 @@ export function PipelineHealthTrend({ data }: Props) {
         <BarChart data={chartData} barCategoryGap="20%">
           <XAxis
             dataKey="period"
-            tick={{ fill: "#9EA8B5", fontSize: 10 }}
+            tick={{ fill: "#A1A1AA", fontSize: 10 }}
             tickLine={false}
-            axisLine={{ stroke: "rgba(0,0,0,0.06)" }}
+            axisLine={{ stroke: "#E4E4E7" }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: "#9EA8B5", fontSize: 10 }}
+            tick={{ fill: "#A1A1AA", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             width={36}
@@ -86,41 +86,41 @@ export function PipelineHealthTrend({ data }: Props) {
           <Tooltip
             contentStyle={{
               backgroundColor: "#FFFFFF",
-              border: "1px solid rgba(0,0,0,0.1)",
-              borderRadius: 8,
+              border: "1px solid #E4E4E7",
+              borderRadius: 10,
               fontSize: 12,
-              color: "#1A2744",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+              color: "#18181B",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
             }}
-            cursor={{ fill: "rgba(26,111,224,0.06)" }}
+            cursor={{ fill: "rgba(37,99,235,0.04)" }}
           />
           <Legend
-            wrapperStyle={{ fontSize: 11, color: "#4A5568" }}
+            wrapperStyle={{ fontSize: 11, color: "#52525B" }}
             iconType="circle"
             iconSize={8}
           />
           <ReferenceLine
             x={todayLabel}
-            stroke="#1A6FE0"
+            stroke="#2563EB"
             strokeDasharray="4 4"
             strokeOpacity={0.5}
           />
           <Bar
             dataKey="SUCCESS"
             stackId="a"
-            fill="#1A6FE0"
+            fill="#16A34A"
             radius={[0, 0, 0, 0]}
           />
           <Bar
             dataKey="FAILED"
             stackId="a"
-            fill="#E74C3C"
+            fill="#DC2626"
             radius={[0, 0, 0, 0]}
           />
           <Bar
             dataKey="CANCELLED"
             stackId="a"
-            fill="#9EA8B5"
+            fill="#A1A1AA"
             radius={[2, 2, 0, 0]}
           />
         </BarChart>
