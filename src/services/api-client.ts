@@ -6,6 +6,13 @@ import type {
   CyclePerformance,
   JobPerformanceRecord,
   JobRegistryRecord,
+  MonitoringEvent,
+  CatalogEntry,
+  CatalogEntity,
+  EntityLineageRecord,
+  LineageEdge,
+  CatalogDiagram,
+  CatalogDocument,
 } from "@/types/pipeline";
 import {
   healthSummary,
@@ -15,6 +22,13 @@ import {
   cyclePerformance,
   jobPerformance,
   jobRegistry,
+  monitoringEvents,
+  catalogEntries,
+  catalogEntities,
+  catalogLineage,
+  entityLineage,
+  catalogDiagrams,
+  catalogDocuments,
 } from "@/data/seed-data";
 
 const API_BASE =
@@ -99,6 +113,43 @@ async function fetchPostJson<T>(
   return data as T;
 }
 
+async function fetchPutJson<T>(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    throw new Error(formatHttpErrorDetail(data, text, res.status));
+  }
+  return data as T;
+}
+
+async function fetchDelete<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { method: "DELETE" });
+  const text = await res.text();
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    throw new Error(formatHttpErrorDetail(data, text, res.status));
+  }
+  return data as T;
+}
+
 export const api = {
   getHealthSummary: () =>
     fetchWithFallback<PipelineHealthSummary>("/health-summary", healthSummary),
@@ -124,6 +175,9 @@ export const api = {
   getJobRegistry: () =>
     fetchRows<JobRegistryRecord>("/job-registry", jobRegistry),
 
+  getJobStatus: () =>
+    fetchRows<MonitoringEvent>("/job-status", monitoringEvents),
+
   getPlatforms: () =>
     fetchWithFallback<string[]>("/platforms", [
       "AIRBYTE",
@@ -138,4 +192,77 @@ export const api = {
       message,
       semanticView: semanticView ?? null,
     }),
+
+  // Catalog Portal
+  getCatalog: () =>
+    fetchRows<CatalogEntry>("/catalog", catalogEntries),
+
+  getCatalogById: (id: string) =>
+    fetchWithFallback<CatalogEntry>(
+      `/catalog/${id}`,
+      catalogEntries.find((e) => e.catalogId === id) ?? catalogEntries[0],
+    ),
+
+  getCatalogEntities: (catalogId: string) =>
+    fetchWithFallback<CatalogEntity[]>(
+      `/catalog/${catalogId}/entities`,
+      catalogEntities.filter((e) => e.catalogId === catalogId),
+    ),
+
+  getCatalogLineage: () =>
+    fetchWithFallback<LineageEdge[]>("/catalog/lineage", catalogLineage),
+
+  getEntityLineage: () =>
+    fetchWithFallback<EntityLineageRecord[]>("/catalog/entity-lineage", entityLineage),
+
+  getCatalogDiagrams: (catalogId: string) =>
+    fetchWithFallback<CatalogDiagram[]>(
+      `/catalog/${catalogId}/diagrams`,
+      catalogDiagrams.filter((d) => d.catalogId === catalogId),
+    ),
+
+  getCatalogDocuments: (catalogId: string) =>
+    fetchWithFallback<CatalogDocument[]>(
+      `/catalog/${catalogId}/documents`,
+      catalogDocuments.filter((d) => d.catalogId === catalogId),
+    ),
+
+  createCatalogEntry: (data: Record<string, unknown>) =>
+    fetchPostJson<{ catalogId: string }>("/catalog", data),
+
+  bulkImportCatalog: (rows: Record<string, unknown>[]) =>
+    fetchPostJson<{ inserted: number; skipped: number; errors: { pipelineName: string; error: string }[] }>(
+      "/catalog/bulk",
+      { rows },
+    ),
+
+  updateCatalogEntry: (id: string, data: Record<string, unknown>) =>
+    fetchPutJson<{ status: string }>(`/catalog/${id}`, data),
+
+  createEntity: (catalogId: string, data: Record<string, unknown>) =>
+    fetchPostJson<{ entityId: string }>(`/catalog/${catalogId}/entities`, data),
+
+  updateEntity: (entityId: string, data: Record<string, unknown>) =>
+    fetchPutJson<{ status: string }>(`/catalog/entities/${entityId}`, data),
+
+  deleteEntity: (entityId: string) =>
+    fetchDelete<{ status: string }>(`/catalog/entities/${entityId}`),
+
+  createLineageEdge: (data: Record<string, unknown>) =>
+    fetchPostJson<{ lineageId: string }>("/catalog/lineage", data),
+
+  deleteLineageEdge: (id: string) =>
+    fetchDelete<{ status: string }>(`/catalog/lineage/${id}`),
+
+  createDiagram: (catalogId: string, data: Record<string, unknown>) =>
+    fetchPostJson<{ diagramId: string }>(`/catalog/${catalogId}/diagrams`, data),
+
+  deleteDiagram: (id: string) =>
+    fetchDelete<{ status: string }>(`/catalog/diagrams/${id}`),
+
+  createDocument: (catalogId: string, data: Record<string, unknown>) =>
+    fetchPostJson<{ documentId: string }>(`/catalog/${catalogId}/documents`, data),
+
+  deleteDocument: (id: string) =>
+    fetchDelete<{ status: string }>(`/catalog/documents/${id}`),
 };

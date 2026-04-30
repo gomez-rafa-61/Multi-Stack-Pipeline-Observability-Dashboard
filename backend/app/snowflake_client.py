@@ -11,19 +11,26 @@ import logging
 import os
 from contextlib import contextmanager
 from decimal import Decimal
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 
 import snowflake.connector
 from snowflake.connector import DictCursor
 
 log = logging.getLogger(__name__)
 
-_cached_connection: snowflake.connector.SnowflakeConnection | None = None
+_cached_connection: Optional[snowflake.connector.SnowflakeConnection] = None
 _msal_app: Any = None
 
 
 def _load_private_key_der() -> bytes:
-    """Load RSA private key from PEM file and return DER-encoded PKCS8 bytes."""
+    """Load RSA private key and return DER-encoded PKCS8 bytes.
+
+    Checks SNOWFLAKE_PRIVATE_KEY_B64 (base64-encoded PEM string, ideal for
+    Docker / cloud deployments) first, then falls back to reading a PEM file
+    from SNOWFLAKE_PRIVATE_KEY_PATH.
+    """
+    import base64
+
     from cryptography.hazmat.primitives.serialization import (
         Encoding,
         NoEncryption,
@@ -31,12 +38,18 @@ def _load_private_key_der() -> bytes:
         load_pem_private_key,
     )
 
-    key_path = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH", "snowflake_rsa_key.p8")
     passphrase_str = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE", "")
     passphrase = passphrase_str.encode() if passphrase_str else None
 
-    with open(key_path, "rb") as f:
-        pem_data = f.read()
+    b64_key = os.environ.get("SNOWFLAKE_PRIVATE_KEY_B64", "")
+    if b64_key:
+        log.info("Loading Snowflake private key from SNOWFLAKE_PRIVATE_KEY_B64 env var")
+        pem_data = base64.b64decode(b64_key)
+    else:
+        key_path = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH", "snowflake_rsa_key.p8")
+        log.info("Loading Snowflake private key from file: %s", key_path)
+        with open(key_path, "rb") as f:
+            pem_data = f.read()
 
     key = load_pem_private_key(pem_data, password=passphrase)
     return key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())
@@ -133,6 +146,21 @@ def execute_query(sql: str) -> list[dict[str, Any]]:
             cur.execute(sql)
             rows = cur.fetchall()
         return [_normalize_row(r) for r in rows]
+    except Exception:
+        global _cached_connection
+        _cached_connection = None
+        raise
+
+
+def execute_write(sql: str, params: dict[str, Any] | list[Any] | None = None) -> int:
+    """Execute a write statement (INSERT/UPDATE/DELETE) with parameterized values.
+
+    Returns the number of affected rows.
+    """
+    try:
+        with get_cursor() as cur:
+            cur.execute(sql, params or {})
+            return cur.rowcount
     except Exception:
         global _cached_connection
         _cached_connection = None

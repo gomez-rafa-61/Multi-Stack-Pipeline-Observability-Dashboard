@@ -4,7 +4,8 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { api } from "@/services/api-client";
 import { usePolling } from "@/hooks/use-polling";
 import { useRefresh } from "@/context/refresh-context";
-import { getPlatformMeta } from "@/config/platform-meta";
+import { PlatformBadge } from "@/components/ui/PlatformBadge";
+import { JobNameText } from "@/components/ui/JobNameText";
 import type { JobRegistryRecord } from "@/types/pipeline";
 import {
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   CircleCheck,
   CircleOff,
   FolderOpen,
+  Tag,
 } from "lucide-react";
 
 const POLL_INTERVAL = 60_000;
@@ -22,28 +24,28 @@ const POLL_INTERVAL = 60_000;
 function priorityColor(priority: string): { bg: string; text: string } {
   switch (priority.toLowerCase()) {
     case "critical":
-      return { bg: "rgba(192,57,43,0.15)", text: "#e74c3c" };
+      return { bg: "rgba(220,38,38,0.08)", text: "#DC2626" };
     case "high":
-      return { bg: "rgba(231,76,60,0.1)", text: "var(--color-danger)" };
+      return { bg: "rgba(220,38,38,0.06)", text: "#DC2626" };
     case "medium":
-      return { bg: "rgba(245,166,35,0.1)", text: "var(--color-warning)" };
+      return { bg: "rgba(217,119,6,0.08)", text: "#D97706" };
     case "low":
-      return { bg: "rgba(46,173,110,0.1)", text: "var(--color-success)" };
+      return { bg: "rgba(22,163,74,0.08)", text: "#16A34A" };
     default:
-      return { bg: "rgba(158,168,181,0.12)", text: "var(--color-text-muted)" };
+      return { bg: "rgba(161,161,170,0.08)", text: "#A1A1AA" };
   }
 }
 
 function categoryColor(cat: string): string {
   switch (cat) {
-    case "orchestration": return "#e8822a";
-    case "data_movement": return "#3b82f6";
-    case "validation":    return "#a855f7";
-    case "archival":      return "#6b7280";
-    case "transformation": return "#14b8a6";
-    case "ingestion":     return "#22c55e";
-    case "reporting":     return "#f59e0b";
-    default:              return "#9ca3af";
+    case "orchestration": return "#16A34A";
+    case "data_movement": return "#2563EB";
+    case "validation":    return "#7C3AED";
+    case "archival":      return "#6B7280";
+    case "transformation": return "#0D9488";
+    case "ingestion":     return "#16A34A";
+    case "reporting":     return "#D97706";
+    default:              return "#A1A1AA";
   }
 }
 
@@ -53,23 +55,51 @@ function formatSla(hours: number): string {
   return `${hours}h`;
 }
 
-interface SolutionGroup {
-  solutionId: string;
-  solutionName: string;
+interface RegistryJobGroup {
+  id: string;
+  title: string;
+  subtitle?: string;
   jobs: JobRegistryRecord[];
+  kind: "solution" | "tag";
 }
 
-function groupBySolution(jobs: JobRegistryRecord[]): SolutionGroup[] {
-  const map = new Map<string, SolutionGroup>();
+function groupPowerAutomateBySolution(jobs: JobRegistryRecord[]): RegistryJobGroup[] {
+  const map = new Map<string, RegistryJobGroup>();
   for (const job of jobs) {
     const id = job.solutionId ?? "_ungrouped";
-    const name = job.solutionName ?? "Ungrouped Flows";
+    const name = job.solutionName ?? "Ungrouped flows";
     if (!map.has(id)) {
-      map.set(id, { solutionId: id, solutionName: name, jobs: [] });
+      map.set(id, { id, title: name, subtitle: id !== "_ungrouped" ? id : undefined, jobs: [], kind: "solution" });
     }
     map.get(id)!.jobs.push(job);
   }
-  return [...map.values()].sort((a, b) => a.solutionName.localeCompare(b.solutionName));
+  return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function groupSnowflakeByTag(jobs: JobRegistryRecord[]): RegistryJobGroup[] {
+  const map = new Map<string, RegistryJobGroup>();
+  for (const job of jobs) {
+    const raw = job.tag?.trim();
+    const id = raw ? `tag:${raw}` : "_untagged";
+    const title = raw || "Ungrouped jobs";
+    if (!map.has(id)) {
+      map.set(id, { id, title, jobs: [], kind: "tag" });
+    }
+    map.get(id)!.jobs.push(job);
+  }
+  return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function registryGroupsForPlatform(
+  platform: string | null,
+  jobs: JobRegistryRecord[],
+): RegistryJobGroup[] | null {
+  if (!platform) return null;
+  if (platform === "POWER_AUTOMATE") return groupPowerAutomateBySolution(jobs);
+  if (platform === "SNOWFLAKE" && jobs.some((j) => j.tag?.trim())) {
+    return groupSnowflakeByTag(jobs);
+  }
+  return null;
 }
 
 export function JobRegistry() {
@@ -137,21 +167,23 @@ export function JobRegistry() {
         j.jobName.toLowerCase().includes(q) ||
         j.description.toLowerCase().includes(q) ||
         j.businessFunction.toLowerCase().includes(q) ||
-        (j.solutionName ?? "").toLowerCase().includes(q),
+        (j.solutionName ?? "").toLowerCase().includes(q) ||
+        (j.tag ?? "").toLowerCase().includes(q),
     );
   }, [grouped, activePlatform, search]);
 
-  const isPowerAutomate = activePlatform === "POWER_AUTOMATE";
-  const solutionGroups = useMemo(
-    () => (isPowerAutomate ? groupBySolution(visibleJobs) : []),
-    [isPowerAutomate, visibleJobs],
+  const jobGroups = useMemo(
+    () => registryGroupsForPlatform(activePlatform, visibleJobs),
+    [activePlatform, visibleJobs],
   );
+  const isGroupedView = jobGroups != null;
+  const showCategoryColumn = activePlatform === "POWER_AUTOMATE" && isGroupedView;
 
-  function toggleGroup(solutionId: string) {
+  function toggleGroup(groupId: string) {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(solutionId)) next.delete(solutionId);
-      else next.add(solutionId);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
       return next;
     });
   }
@@ -165,14 +197,13 @@ export function JobRegistry() {
     );
   }
 
-  const colCount = isPowerAutomate ? 7 : 6;
+  const colCount = showCategoryColumn ? 7 : 6;
 
   return (
     <div className="flex gap-5 h-[calc(100vh-7rem)]">
-      {/* Platform sidebar */}
-      <div className="w-56 shrink-0 bg-bg-surface border border-border-default rounded-xl overflow-hidden flex flex-col">
+      <div className="w-56 shrink-0 bg-bg-surface border border-border-default rounded-[14px] overflow-hidden flex flex-col shadow-[var(--shadow-card)]">
         <div className="px-4 py-3 border-b border-border-default">
-          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted">
+          <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted">
             Platforms
           </p>
           <p className="text-xs text-text-muted mt-0.5">
@@ -184,32 +215,31 @@ export function JobRegistry() {
         </div>
         <nav className="flex-1 overflow-y-auto py-2 px-2">
           {platforms.map((key) => {
-            const meta = getPlatformMeta(key);
-            const Icon = meta.icon;
             const count = grouped.get(key)?.length ?? 0;
             const isActive = activePlatform === key;
             return (
               <button
                 key={key}
                 onClick={() => setActivePlatform(key)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors duration-200 mb-0.5 ${
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors duration-200 mb-0.5 cursor-pointer ${
                   isActive
-                    ? "bg-accent-muted text-accent"
-                    : "text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                    ? "bg-accent-muted ring-1 ring-accent/20"
+                    : "hover:bg-bg-primary"
                 }`}
               >
-                <Icon size={16} />
-                <span className="flex-1 text-left truncate">{meta.displayName}</span>
+                <span className="flex-1 min-w-0 text-left">
+                  <PlatformBadge platform={key} />
+                </span>
                 <span
-                  className={`text-xs tabular-nums ${
-                    isActive ? "text-accent" : "text-text-muted"
+                  className={`text-xs tabular-nums shrink-0 ${
+                    isActive ? "text-accent font-semibold" : "text-text-muted"
                   }`}
                 >
                   {count}
                 </span>
                 <ChevronRight
                   size={14}
-                  className={`transition-transform duration-200 ${
+                  className={`shrink-0 transition-transform duration-200 ${
                     isActive
                       ? "rotate-90 text-accent"
                       : "text-text-muted"
@@ -221,19 +251,23 @@ export function JobRegistry() {
         </nav>
       </div>
 
-      {/* Jobs table */}
-      <div className="flex-1 bg-bg-surface border border-border-default rounded-xl overflow-hidden flex flex-col min-w-0">
+      <div className="flex-1 bg-bg-surface border border-border-default rounded-[14px] overflow-hidden flex flex-col min-w-0 shadow-[var(--shadow-card)]">
         <div className="flex items-center justify-between p-4 border-b border-border-default shrink-0">
           <div>
-            <h3 className="text-sm font-semibold text-text-primary">
-              {activePlatform
-                ? getPlatformMeta(activePlatform).displayName
-                : "Select a platform"}
+            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2 flex-wrap min-h-[1.75rem]">
+              {activePlatform ? (
+                <PlatformBadge platform={activePlatform} />
+              ) : (
+                <span className="text-text-secondary font-medium">Select a platform</span>
+              )}
             </h3>
             <p className="text-xs text-text-muted mt-0.5">
               {visibleJobs.length} job{visibleJobs.length !== 1 ? "s" : ""} registered
-              {isPowerAutomate && solutionGroups.length > 0 && (
-                <span> across {solutionGroups.length} solutions</span>
+              {jobGroups && jobGroups.length > 0 && activePlatform === "POWER_AUTOMATE" && (
+                <span> across {jobGroups.length} solutions</span>
+              )}
+              {jobGroups && jobGroups.length > 0 && activePlatform === "SNOWFLAKE" && (
+                <span> across {jobGroups.length} tags</span>
               )}
             </p>
           </div>
@@ -248,27 +282,27 @@ export function JobRegistry() {
           <table className="w-full">
             <thead className="sticky top-0 bg-bg-surface z-10">
               <tr className="border-b border-border-default">
-                <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+                <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                   Job Name
                 </th>
-                <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+                <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                   Status
                 </th>
-                {isPowerAutomate && (
-                  <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+                {showCategoryColumn && (
+                  <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                     Category
                   </th>
                 )}
-                <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+                <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                   Priority
                 </th>
-                <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+                <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                   Description
                 </th>
-                <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+                <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                   Business Function
                 </th>
-                <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+                <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                   <span className="flex items-center gap-1">
                     <Clock size={12} />
                     SLA
@@ -277,24 +311,25 @@ export function JobRegistry() {
               </tr>
             </thead>
             <tbody>
-              {isPowerAutomate ? (
-                solutionGroups.map((group) => {
-                  const isOpen = !collapsed.has(group.solutionId);
+              {jobGroups ? (
+                jobGroups.map((group) => {
+                  const isOpen = !collapsed.has(group.id);
                   const enabledCount = group.jobs.filter((j) => j.enabled).length;
                   return (
-                    <SolutionGroupRows
-                      key={group.solutionId}
+                    <JobGroupSection
+                      key={group.id}
                       group={group}
                       isOpen={isOpen}
                       enabledCount={enabledCount}
                       colCount={colCount}
-                      onToggle={() => toggleGroup(group.solutionId)}
+                      showCategoryColumn={showCategoryColumn}
+                      onToggle={() => toggleGroup(group.id)}
                     />
                   );
                 })
               ) : (
                 visibleJobs.map((job) => (
-                  <JobRow key={`${job.platform}-${job.jobName}`} job={job} showCategory={false} />
+                  <JobRow key={`${job.platform}-${job.jobName}`} job={job} showCategory={false} indent={false} />
                 ))
               )}
               {visibleJobs.length === 0 && (
@@ -317,72 +352,96 @@ export function JobRegistry() {
   );
 }
 
-function SolutionGroupRows({
+function JobGroupSection({
   group,
   isOpen,
   enabledCount,
   colCount,
+  showCategoryColumn,
   onToggle,
 }: {
-  group: SolutionGroup;
+  group: RegistryJobGroup;
   isOpen: boolean;
   enabledCount: number;
   colCount: number;
+  showCategoryColumn: boolean;
   onToggle: () => void;
 }) {
-  const displayName = group.solutionName.replace(/^ADO\d+[\w/]*-\s*/, "");
+  const headerTitle =
+    group.kind === "solution"
+      ? group.title.replace(/^ADO\d+[\w/]*-\s*/, "")
+      : group.title;
+  const GroupIcon = group.kind === "solution" ? FolderOpen : Tag;
+  const countLabel = group.kind === "solution" ? "flows" : "jobs";
+
   return (
     <>
       <tr
         onClick={onToggle}
-        className="border-b border-border-default bg-bg-primary/50 cursor-pointer hover:bg-surface-hover transition-colors duration-200"
+        className="border-b border-border-default bg-bg-primary/40 cursor-pointer hover:bg-bg-primary/70 transition-colors duration-150"
       >
         <td colSpan={colCount} className="px-4 py-2.5">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             {isOpen ? (
               <ChevronDown size={14} className="text-accent shrink-0" />
             ) : (
               <ChevronRight size={14} className="text-text-muted shrink-0" />
             )}
-            <FolderOpen size={14} className="text-accent shrink-0" />
-            <span className="text-sm font-semibold text-text-primary">
-              {displayName}
-            </span>
-            <span className="text-[10px] font-mono text-text-muted">
-              {group.solutionId}
-            </span>
-            <span className="text-xs text-text-muted ml-auto tabular-nums">
-              {enabledCount}/{group.jobs.length} flows enabled
+            <GroupIcon size={14} className="text-accent shrink-0" />
+            <JobNameText className="font-semibold min-w-0 shrink">{headerTitle}</JobNameText>
+            {group.subtitle && (
+              <span className="text-[10px] font-mono text-text-muted shrink-0">
+                {group.subtitle}
+              </span>
+            )}
+            <span className="text-xs text-text-muted ml-auto tabular-nums shrink-0">
+              {enabledCount}/{group.jobs.length} {countLabel} enabled
             </span>
           </div>
         </td>
       </tr>
       {isOpen &&
         group.jobs.map((job) => (
-          <JobRow key={`${job.platform}-${job.jobName}`} job={job} showCategory />
+          <JobRow
+            key={`${job.platform}-${job.jobName}`}
+            job={job}
+            showCategory={showCategoryColumn}
+            indent
+          />
         ))}
     </>
   );
 }
 
-function JobRow({ job, showCategory }: { job: JobRegistryRecord; showCategory: boolean }) {
+function JobRow({
+  job,
+  showCategory,
+  indent,
+}: {
+  job: JobRegistryRecord;
+  showCategory: boolean;
+  indent: boolean;
+}) {
   const pColor = priorityColor(job.priority);
   const slaUrgent = job.slaHours != null && job.slaHours <= 4;
   return (
     <tr
-      className={`border-b border-border-default transition-colors duration-200 hover:bg-surface-hover ${
+      className={`border-b border-border-default transition-colors duration-150 hover:bg-bg-primary/50 ${
         !job.enabled ? "opacity-60" : ""
       }`}
     >
-      <td className="px-4 py-3 text-sm text-text-primary font-medium max-w-xs truncate">
-        {showCategory && <span className="inline-block w-4" />}
-        {job.jobName}
+      <td
+        className={`py-3 pr-4 max-w-xs ${indent ? "pl-6 border-l-2 border-accent/25 ml-3" : "pl-4"}`}
+      >
+        <JobNameText title={job.jobName} className="max-w-[min(100%,20rem)] align-middle">
+          {job.jobName}
+        </JobNameText>
       </td>
       <td className="px-4 py-3">
         {job.enabled ? (
           <span
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold"
-            style={{ backgroundColor: "rgba(46,173,110,0.1)", color: "var(--color-success)" }}
+            style={{ backgroundColor: "rgba(22,163,74,0.08)", color: "#16A34A" }}
           >
             <CircleCheck size={12} />
             Enabled
@@ -390,7 +449,7 @@ function JobRow({ job, showCategory }: { job: JobRegistryRecord; showCategory: b
         ) : (
           <span
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold"
-            style={{ backgroundColor: "rgba(158,168,181,0.1)", color: "var(--color-text-muted)" }}
+            style={{ backgroundColor: "rgba(161,161,170,0.08)", color: "#A1A1AA" }}
           >
             <CircleOff size={12} />
             Disabled
@@ -403,7 +462,7 @@ function JobRow({ job, showCategory }: { job: JobRegistryRecord; showCategory: b
             <span
               className="inline-block px-2 py-0.5 rounded text-xs font-semibold"
               style={{
-                backgroundColor: `${categoryColor(job.category)}18`,
+                backgroundColor: `${categoryColor(job.category)}12`,
                 color: categoryColor(job.category),
               }}
             >
@@ -426,7 +485,7 @@ function JobRow({ job, showCategory }: { job: JobRegistryRecord; showCategory: b
       <td className="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">
         {job.businessFunction}
       </td>
-      <td className="px-4 py-3 text-sm tabular-nums whitespace-nowrap">
+      <td className="px-4 py-3 text-sm font-mono tabular-nums whitespace-nowrap">
         {job.slaHours != null ? (
           <span
             className={`flex items-center gap-1 ${

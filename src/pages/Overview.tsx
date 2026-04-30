@@ -3,7 +3,7 @@ import { MetricCard } from "@/components/metrics/MetricCard";
 import { PipelineHealthTrend } from "@/components/charts/PipelineHealthTrend";
 import { PlatformBreakdown } from "@/components/charts/PlatformBreakdown";
 import { RecentFailuresTable } from "@/components/tables/RecentFailuresTable";
-import { CortexAnalystPanel } from "@/components/ui/CortexAnalystPanel";
+import { CurrentActivitiesFeed } from "@/components/ui/CurrentActivitiesFeed";
 import { api } from "@/services/api-client";
 import { usePolling } from "@/hooks/use-polling";
 import { useRefresh } from "@/context/refresh-context";
@@ -16,7 +16,9 @@ export function Overview() {
   const health = usePolling(api.getHealthSummary, POLL_INTERVAL);
   const trend = usePolling(api.getStatusTrend, POLL_INTERVAL);
   const platforms = usePolling(api.getPlatformBreakdown, POLL_INTERVAL);
+  const allPlatforms = usePolling(api.getPlatforms, POLL_INTERVAL);
   const failures = usePolling(api.getRecentFailures, POLL_INTERVAL);
+  const activities = usePolling(api.getJobStatus, POLL_INTERVAL);
 
   const refreshAll = useCallback(
     () =>
@@ -24,9 +26,11 @@ export function Overview() {
         health.refresh(),
         trend.refresh(),
         platforms.refresh(),
+        allPlatforms.refresh(),
         failures.refresh(),
+        activities.refresh(),
       ]).then(() => undefined),
-    [health.refresh, trend.refresh, platforms.refresh, failures.refresh],
+    [health.refresh, trend.refresh, platforms.refresh, failures.refresh, activities.refresh],
   );
 
   useEffect(() => {
@@ -35,11 +39,11 @@ export function Overview() {
   }, [register, unregister, refreshAll]);
 
   useEffect(() => {
-    const latest = [health.lastUpdated, trend.lastUpdated, platforms.lastUpdated, failures.lastUpdated]
+    const latest = [health.lastUpdated, trend.lastUpdated, platforms.lastUpdated, failures.lastUpdated, activities.lastUpdated]
       .filter(Boolean)
       .sort((a, b) => b!.getTime() - a!.getTime())[0];
     if (latest) reportUpdate(latest);
-  }, [health.lastUpdated, trend.lastUpdated, platforms.lastUpdated, failures.lastUpdated, reportUpdate]);
+  }, [health.lastUpdated, trend.lastUpdated, platforms.lastUpdated, failures.lastUpdated, activities.lastUpdated, reportUpdate]);
 
   if (!health.data) {
     return (
@@ -100,13 +104,13 @@ export function Overview() {
           <PipelineHealthTrend data={trend.data ?? []} />
         </div>
         <div className="col-span-4">
-          <PlatformBreakdown data={platforms.data ?? []} />
+          <PlatformBreakdown data={platforms.data ?? []} allPlatforms={allPlatforms.data ?? []} />
         </div>
       </div>
 
       <RecentFailuresTable data={failures.data ?? []} />
 
-      <CortexAnalystPanel />
+      <CurrentActivitiesFeed events={activities.data ?? []} />
     </div>
   );
 }

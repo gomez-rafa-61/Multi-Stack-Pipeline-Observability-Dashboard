@@ -16,11 +16,16 @@ export function JobPerformance() {
 
   const jobs = usePolling(api.getJobPerformance, POLL_INTERVAL);
   const cycles = usePolling(api.getCyclePerformance, POLL_INTERVAL);
+  const registry = usePolling(api.getJobRegistry, POLL_INTERVAL);
 
   const refreshAll = useCallback(
     () =>
-      Promise.all([jobs.refresh(), cycles.refresh()]).then(() => undefined),
-    [jobs.refresh, cycles.refresh],
+      Promise.all([
+        jobs.refresh(),
+        cycles.refresh(),
+        registry.refresh(),
+      ]).then(() => undefined),
+    [jobs.refresh, cycles.refresh, registry.refresh],
   );
 
   useEffect(() => {
@@ -29,15 +34,19 @@ export function JobPerformance() {
   }, [register, unregister, refreshAll]);
 
   useEffect(() => {
-    const latest = [jobs.lastUpdated, cycles.lastUpdated]
+    const latest = [jobs.lastUpdated, cycles.lastUpdated, registry.lastUpdated]
       .filter(Boolean)
       .sort((a, b) => b!.getTime() - a!.getTime())[0];
     if (latest) reportUpdate(latest);
-  }, [jobs.lastUpdated, cycles.lastUpdated, reportUpdate]);
+  }, [jobs.lastUpdated, cycles.lastUpdated, registry.lastUpdated, reportUpdate]);
 
   return (
     <div className="space-y-5">
-      <JobPerformanceTable data={jobs.data ?? []} initialPlatform={initialPlatform} />
+      <JobPerformanceTable
+        data={jobs.data ?? []}
+        registry={registry.data ?? []}
+        initialPlatform={initialPlatform}
+      />
       <CyclePerformanceChart data={cycles.data ?? []} />
     </div>
   );

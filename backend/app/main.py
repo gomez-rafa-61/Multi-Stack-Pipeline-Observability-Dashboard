@@ -7,7 +7,7 @@ USE_SEMANTIC_VIEWS=true) and optionally proxies Cortex Analyst.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import os
 
@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from app import queries
+from app.catalog_routes import router as catalog_router
 from app.cortex_analyst import post_message as cortex_post_message
 from app.snowflake_client import execute_query
 
@@ -42,9 +43,12 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+
+
+app.include_router(catalog_router)
 
 
 def _run(sql: str) -> list[dict[str, Any]]:
@@ -86,6 +90,11 @@ def job_performance() -> list[dict[str, Any]]:
     return _run(queries.JOB_PERFORMANCE)
 
 
+@app.get("/api/job-status")
+def job_status() -> list[dict[str, Any]]:
+    return _run(queries.MONITORING_EVENTS)
+
+
 @app.get("/api/job-registry")
 def job_registry() -> list[dict[str, Any]]:
     return _run(queries.JOB_REGISTRY)
@@ -106,7 +115,7 @@ class CortexAnalystRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     message: str = Field(..., min_length=1, max_length=8000)
-    semantic_view: str | None = Field(None, alias="semanticView")
+    semantic_view: Optional[str] = Field(None, alias="semanticView")
 
 
 @app.post("/api/cortex-analyst/message")

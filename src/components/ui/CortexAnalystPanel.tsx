@@ -45,7 +45,7 @@ export function CortexAnalystPanel() {
   }
 
   return (
-    <section className="rounded-xl border border-border-subtle bg-bg-secondary/40 p-4 space-y-3">
+    <section className="rounded-[14px] border border-border-default bg-bg-surface p-4 space-y-3 shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
         <Sparkles size={16} className="text-accent" />
         Cortex Analyst
@@ -61,7 +61,7 @@ export function CortexAnalystPanel() {
           onChange={(e) =>
             setSemanticView(e.target.value as SemanticViewId)
           }
-          className="w-full h-9 px-3 bg-bg-primary border border-border-input rounded-lg text-xs text-text-primary outline-none focus:border-accent"
+          className="w-full h-9 px-3 bg-bg-primary border border-border-default rounded-lg text-xs text-text-primary outline-none focus:border-accent transition-colors duration-200"
         >
           {SEMANTIC_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -72,25 +72,25 @@ export function CortexAnalystPanel() {
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask about pipeline health, trends, or failures…"
+          placeholder="Ask about pipeline health, trends, or failures..."
           rows={3}
-          className="w-full px-3 py-2 bg-bg-primary border border-border-input rounded-lg text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent resize-y min-h-[72px]"
+          className="w-full px-3 py-2 bg-bg-primary border border-border-default rounded-lg text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 resize-y min-h-[72px] transition-all duration-200"
         />
         <button
           type="submit"
           disabled={loading}
-          className="px-4 py-2 rounded-lg bg-accent text-bg-primary text-sm font-medium hover:opacity-95 disabled:opacity-50"
+          className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 active:scale-[0.98] disabled:opacity-50 transition-all duration-200 cursor-pointer"
         >
-          {loading ? "Asking…" : "Ask Cortex Analyst"}
+          {loading ? "Asking..." : "Ask Cortex Analyst"}
         </button>
       </form>
       {error && (
-        <pre className="text-xs text-red-400 whitespace-pre-wrap break-words">
+        <pre className="text-xs text-danger whitespace-pre-wrap break-words">
           {error}
         </pre>
       )}
       {responseJson && (
-        <pre className="text-xs text-text-muted overflow-x-auto max-h-80 p-3 rounded-lg bg-bg-primary border border-border-subtle">
+        <pre className="text-xs text-text-secondary overflow-x-auto max-h-80 p-3 rounded-lg bg-bg-primary border border-border-default font-mono">
           {responseJson}
         </pre>
       )}

@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { ExternalLink } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { PlatformBadge } from "@/components/ui/PlatformBadge";
+import { JobNameText } from "@/components/ui/JobNameText";
 import type { RecentFailure } from "@/types/pipeline";
 
 interface Props {
@@ -29,9 +31,9 @@ export function RecentFailuresTable({ data }: Props) {
   }, [data, search]);
 
   return (
-    <div className="bg-bg-surface border border-border-default rounded-xl">
+    <div className="bg-bg-surface border border-border-default rounded-[14px] shadow-[var(--shadow-card)]">
       <div className="flex items-center justify-between p-4 border-b border-border-default">
-        <h3 className="text-sm font-semibold text-text-primary">
+        <h3 className="text-sm font-semibold tracking-[-0.01em] text-text-primary">
           Recent Failures
           <span className="text-text-muted font-normal ml-2 text-xs">
             {filtered.length} events
@@ -47,43 +49,41 @@ export function RecentFailuresTable({ data }: Props) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border-default">
-              <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+            <tr className="border-b border-border-default bg-bg-primary/50">
+              <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                 Time
               </th>
-              <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+              <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                 Platform
               </th>
-              <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+              <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                 Job Name
               </th>
-              <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+              <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                 Status
               </th>
-              <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+              <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                 Error Message
               </th>
-              <th className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-text-muted px-4 py-3">
+              <th className="text-left text-[10px] font-medium uppercase tracking-[0.06em] text-text-muted px-4 py-3">
                 Log
               </th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row, i) => (
+            {filtered.map((row) => (
               <tr
                 key={row.runId}
-                className={`border-b border-border-default transition-colors duration-200 hover:bg-surface-hover ${
-                  i % 2 === 1 ? "bg-[rgba(0,0,0,0.02)]" : ""
-                }`}
+                className="border-b border-border-default transition-colors duration-150 hover:bg-bg-primary/50"
               >
-                <td className="px-4 py-3 text-sm text-text-muted whitespace-nowrap">
+                <td className="px-4 py-3 text-sm text-text-muted font-mono tabular-nums whitespace-nowrap">
                   {formatTimeAgo(row.minutesAgo)}
                 </td>
-                <td className="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">
-                  {row.platform}
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <PlatformBadge platform={row.platform} />
                 </td>
-                <td className="px-4 py-3 text-sm text-text-primary font-medium whitespace-nowrap">
-                  {row.jobName}
+                <td className="px-4 py-3 whitespace-nowrap max-w-[220px]">
+                  <JobNameText title={row.jobName}>{row.jobName}</JobNameText>
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={row.status} />

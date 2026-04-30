@@ -1,39 +1,67 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-bg-primary: #F0F2F5;
+  --color-bg-primary: #FAFAFA;
   --color-bg-surface: #FFFFFF;
-  --color-border-default: rgba(0, 0, 0, 0.08);
-  --color-border-elevated: rgba(0, 0, 0, 0.12);
-  --color-border-input: rgba(0, 0, 0, 0.15);
+  --color-border-default: #E4E4E7;
+  --color-border-elevated: #D4D4D8;
+  --color-border-input: #D4D4D8;
 
-  --color-accent: #1A6FE0;
-  --color-accent-muted: rgba(26, 111, 224, 0.12);
+  --color-accent: #2563EB;
+  --color-accent-muted: rgba(37, 99, 235, 0.1);
+  --color-accent-secondary: #3B82F6;
 
-  --color-success: #2EAD6E;
-  --color-success-muted: rgba(46, 173, 110, 0.1);
-  --color-warning: #F5A623;
-  --color-warning-muted: rgba(245, 166, 35, 0.1);
-  --color-danger: #E74C3C;
-  --color-danger-muted: rgba(231, 76, 60, 0.1);
+  --color-success: #16A34A;
+  --color-success-muted: rgba(22, 163, 74, 0.08);
+  /* UAM dashboard accents (catalog / KPI alignment) */
+  --color-uam-teal: #085041;
+  --color-uam-teal-muted: rgba(8, 80, 65, 0.12);
+  --color-uam-red: #791f1f;
+  --color-uam-red-muted: rgba(121, 31, 31, 0.12);
+  --color-uam-sidebar: #0f172a;
+  --color-warning: #D97706;
+  --color-warning-muted: rgba(217, 119, 6, 0.08);
+  --color-danger: #DC2626;
+  --color-danger-muted: rgba(220, 38, 38, 0.08);
 
-  --color-text-primary: #1A2744;
-  --color-text-secondary: #4A5568;
-  --color-text-muted: #9EA8B5;
+  --color-text-primary: #18181B;
+  --color-text-secondary: #52525B;
+  --color-text-muted: #A1A1AA;
   --color-surface-hover: rgba(0, 0, 0, 0.03);
 
-  --color-kpi-monetary: #6B4FD8;
-  --color-kpi-count: #0097A7;
-  --color-kpi-rate: #00ACC1;
-  --color-kpi-time: #2EAD6E;
+  --color-kpi-monetary: #16A34A;
+  --color-kpi-count: #2563EB;
+  --color-kpi-rate: #7C3AED;
+  --color-kpi-time: #0891B2;
 
-  --color-nav-bg: #0D1B35;
-  --color-nav-text: #FFFFFF;
+  --color-nav-bg: #18181B;
+  --color-nav-text: #FAFAFA;
+  --color-nav-muted: #A1A1AA;
+  --color-nav-active-bg: rgba(59, 130, 246, 0.15);
+  --color-nav-active-text: #60A5FA;
+  --color-nav-hover-bg: rgba(255, 255, 255, 0.06);
 
   --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-xl: 14px;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 6px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.04);
+
+  --animate-pulse-dot: pulse-dot 2s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 html {
@@ -45,13 +73,14 @@ body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c1c7cd #f0f2f5;
+  scrollbar-color: #D4D4D8 #FAFAFA;
 }
 
 *::-webkit-scrollbar {
@@ -60,14 +89,14 @@ body {
 }
 
 *::-webkit-scrollbar-track {
-  background: #f0f2f5;
+  background: #FAFAFA;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: #c1c7cd;
+  background: #D4D4D8;
   border-radius: 3px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: #a8aeb5;
+  background: #A1A1AA;
 }

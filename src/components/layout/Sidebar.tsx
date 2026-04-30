@@ -5,6 +5,8 @@ import {
   Briefcase,
   Activity,
   ClipboardList,
+  ListChecks,
+  BookOpen,
   User,
   Loader2,
 } from "lucide-react";
@@ -14,8 +16,9 @@ import { getPlatformMeta } from "@/config/platform-meta";
 interface NavItem {
   label: string;
   to: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   exact?: boolean;
+  platformKey?: string;
 }
 
 interface NavGroup {
@@ -33,6 +36,12 @@ const staticNavigation: NavGroup[] = [
         icon: <LayoutDashboard size={16} />,
         exact: true,
       },
+      {
+        label: "Catalog",
+        to: "/catalog",
+        icon: <BookOpen size={16} />,
+        exact: true,
+      },
     ],
   },
   {
@@ -42,6 +51,12 @@ const staticNavigation: NavGroup[] = [
         label: "Job Performance",
         to: "/jobs",
         icon: <Briefcase size={16} />,
+        exact: true,
+      },
+      {
+        label: "Current Activities",
+        to: "/job-status",
+        icon: <ListChecks size={16} />,
         exact: true,
       },
       {
@@ -62,15 +77,11 @@ const staticNavigation: NavGroup[] = [
 function buildPlatformGroup(platforms: string[]): NavGroup {
   return {
     header: "Platforms",
-    items: platforms.map((key) => {
-      const meta = getPlatformMeta(key);
-      const Icon = meta.icon;
-      return {
-        label: meta.displayName,
-        to: `/jobs?platform=${key}`,
-        icon: <Icon size={16} />,
-      };
-    }),
+    items: platforms.map((key) => ({
+      label: key,
+      to: `/jobs?platform=${key}`,
+      platformKey: key,
+    })),
   };
 }
 
@@ -85,14 +96,29 @@ function SidebarLink({ item }: { item: NavItem }) {
   return (
     <Link
       to={item.to}
-      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors duration-200 ${
+      className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-200 min-w-0 ${
         isActive
-          ? "bg-white/15 text-white font-medium"
-          : "text-white/60 hover:bg-white/8 hover:text-white/90"
+          ? "bg-nav-active-bg text-nav-active-text font-medium border-l-2 border-nav-active-text -ml-px"
+          : "text-nav-muted hover:bg-nav-hover-bg hover:text-nav-text"
       }`}
     >
-      {item.icon}
-      {item.label}
+      {item.platformKey ? (
+        (() => {
+          const meta = getPlatformMeta(item.platformKey);
+          const Icon = meta.icon;
+          return (
+            <>
+              <Icon size={16} />
+              {meta.displayName}
+            </>
+          );
+        })()
+      ) : (
+        <>
+          {item.icon}
+          {item.label}
+        </>
+      )}
     </Link>
   );
 }
@@ -114,25 +140,34 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-56 bg-[var(--color-nav-bg)] flex flex-col z-20">
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-white/10">
-        <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-          <Activity size={18} className="text-white" />
+    <aside className="fixed left-0 top-0 bottom-0 w-56 bg-nav-bg border-r border-[rgba(255,255,255,0.08)] flex flex-col z-20">
+      <div className="flex items-center gap-2.5 px-4 h-14 border-b border-[rgba(255,255,255,0.08)]">
+        <img
+          src="/curaleaf-icon.png"
+          alt="Curaleaf icon"
+          className="h-7 w-7 object-contain brightness-0 invert"
+        />
+        <div className="flex flex-col leading-none min-w-0">
+          <img
+            src="/curaleaf-wordmark.png"
+            alt="Curaleaf"
+            className="h-4 object-contain object-left brightness-0 invert"
+          />
+          <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/40">
+            UAM
+          </span>
         </div>
-        <span className="text-sm font-semibold text-white tracking-tight">
-          UAM Pipeline
-        </span>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         {navigation.map((group) => (
           <div key={group.header} className="mb-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40 px-2.5 mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-nav-muted/60 px-2.5 mb-2">
               {group.header}
             </p>
             <ul className="space-y-0.5">
               {group.items.map((item) => (
-                <li key={item.label}>
+                <li key={item.platformKey ?? item.to}>
                   <SidebarLink item={item} />
                 </li>
               ))}
@@ -142,10 +177,10 @@ export function Sidebar() {
 
         {loading && (
           <div className="mb-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/40 px-2.5 mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-nav-muted/60 px-2.5 mb-2">
               Platforms
             </p>
-            <div className="flex items-center gap-2.5 px-2.5 py-2 text-white/40">
+            <div className="flex items-center gap-2.5 px-2.5 py-2 text-nav-muted">
               <Loader2 size={14} className="animate-spin" />
               <span className="text-xs">Loading&hellip;</span>
             </div>
@@ -153,14 +188,14 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="p-3 border-t border-white/10">
+      <div className="p-3 border-t border-[rgba(255,255,255,0.08)]">
         <div className="flex items-center gap-3 px-2.5 py-2">
-          <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
-            <User size={16} className="text-white/70" />
+          <div className="w-9 h-9 rounded-full bg-[rgba(255,255,255,0.08)] flex items-center justify-center">
+            <User size={16} className="text-nav-muted" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-white truncate">Admin User</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-accent">
+            <p className="text-sm text-nav-text truncate">Admin User</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-nav-active-text">
               Pro Plan
             </p>
           </div>
