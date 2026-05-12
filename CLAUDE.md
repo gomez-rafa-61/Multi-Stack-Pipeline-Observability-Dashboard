@@ -48,3 +48,16 @@ All shared data shapes are in `src/types/pipeline.ts`: `PipelineHealthSummary`, 
 - **Platform keys:** Uppercase strings (e.g., `SNOWFLAKE`, `DATABRICKS`, `POWER_AUTOMATE`) with alias normalization in the API client
 - **Styling:** Dark theme with accent color `#e8822a` (warm orange). Custom CSS variables in `src/index.css`. All components use Tailwind utility classes.
 - **Backend env:** Snowflake credentials configured via `backend/.env` (see `backend/.env.example` for template)
+
+## gstack (recommended)
+
+This project uses [gstack](https://github.com/garrytan/gstack) for AI-assisted workflows.
+Install it for the best experience:
+
+```bash
+git clone --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
+cd ~/.claude/skills/gstack && ./setup --team
+```
+
+Skills like /qa, /ship, /review, /investigate, and /browse become available after install.
+Use /browse for all web browsing. Use ~/.claude/skills/gstack/... for gstack file paths.
